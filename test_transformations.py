@@ -32,25 +32,25 @@ class TransformTest(TestBase):
 
     def test_scale(self):
         tr = pd.Transformer().scaleinit(1,1,1)
-        tred = tr.transform([12, -10, 9])
+        tred = tr.transform(pd.Vector3(12, -10, 9))
         self.assertEqual([12, -10, 9], tred)
         tr = pd.Transformer().scaleinit(10,10,10)
-        tred = tr.transform([12, -10, 9])
+        tred = tr.transform(pd.Vector3(12, -10, 9))
         self.assertEqual([120, -100, 90], tred)
         tr = pd.Transformer().scaleinit(0.5,0.1,-0.1)
-        tred = tr.transform([12, -10, 9])
+        tred = tr.transform(pd.Vector3(12, -10, 9))
         self.assertEqual([6, -1, -0.9], tred)
 
 
     def test_rotatex(self):
         tr = pd.Transformer().xrotinit(90)
-        tred = tr.transform([0,1,0])
+        tred = tr.transform(pd.Vector3(0,1,0))
         exp = [0, 0, 1.0]
         for i in range(3):
             self.assertAlmostEqual(exp[i], tred[i], 10)
 
         tr = pd.Transformer().xrotinit(-90)
-        tred = tr.transform([0,1,0])
+        tred = tr.transform(pd.Vector3(0,1,0))
         exp = [0, 0, -1.0]
         for i in range(3):
             self.assertAlmostEqual(exp[i], tred[i], 10)
@@ -58,7 +58,7 @@ class TransformTest(TestBase):
         
     def test_rotatey(self):
         tr = pd.Transformer().yrotinit(90)
-        tred = tr.transform([1,0,0])
+        tred = tr.transform(pd.Vector3(1,0,0))
         exp = [0, 0, -1.0]
         for i in range(3):
             self.assertAlmostEqual(exp[i], tred[i], 10)
@@ -66,14 +66,14 @@ class TransformTest(TestBase):
 
     def test_rotatez(self):
         tr = pd.Transformer().zrotinit(90)
-        tred = tr.transform([1,0,0])
+        tred = tr.transform(pd.Vector3(1,0,0))
         exp = [0, 1.0, 0]
         for i in range(3):
             self.assertAlmostEqual(exp[i], tred[i], 10)
 
     def test_mixed_series(self):
         tr = pd.Transformer().translateinit(1,0,0).scaleinit(10,10,10).zrotinit(45)
-        tred = tr.transform([0, 0, 0])
+        tred = tr.transform(pd.Vector3(0, 0, 0))
         exp = [10*math.sin(math.pi/4), 10*math.sin(math.pi/4), 0]
         for i in range(3):
             self.assertAlmostEqual(exp[i], tred[i], 10)
