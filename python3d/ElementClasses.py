@@ -237,7 +237,7 @@ class BoxElement(DimensionedElement):
     def __str__(self):
         return "box main point{}, dimensions{}".format(self._cent, self._dimensions)
 
-class BallElement(DimensionedElement):
+class EllipsoidElement(DimensionedElement):
     def __init__(self, centx=0.0, centy=0.0, centz=0.0, radx=1.0, rady=1.0, radz=1.0):
         super().__init__(centx, centy, centz, radx, rady, radz)
 
@@ -246,7 +246,7 @@ class BallElement(DimensionedElement):
         return "ball centre{}, dimensions{}".format(self._cent, self._dimensions)
 
 if __name__ == "__main__":
-    b = BallElement(10, 0, 0, 10, 10, 10)
+    b = EllipsoidElement(10, 0, 0, 10, 10, 10)
     print("initial at 10,0,0 rad 10,10,10", b)
     b = b.translate(10, 10, 10)
     print("translated by 10,10,10", b)
