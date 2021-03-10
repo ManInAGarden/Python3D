@@ -102,74 +102,7 @@ class BasicElement:
         raise NotImplementedError("getmesh(): Override me!")
 
 
-class PartOperationEnum(Enum):
-    ADD = 1
-    SUBTRACT = 2
 
-class BodyElement(object):
-    def __init__(self, element : BasicElement, operation : PartOperationEnum):
-        self._element = element
-        self._operation = operation
-
-    def clone(self):
-        return BodyElement(self._element.clone(), self._operation)
-
-    @property
-    def element(self):
-        return self._element
-
-    def rotate(self, axis : AxisEnum, deg : float):
-        self._element = self._element.rotate(axis, deg)
-
-
-class Body(object):
-    def __init__(self):
-        self._consts = []
-
-    def clone(self):
-        answ = type(self)()
-        for const in self._consts:
-            answ._consts.append(const.clone())
-
-        return answ
-
-    def __getitem__(self, idx):
-         return self._consts[idx]
-
-    def __len__(self):
-        return len(self._consts)
-
-    def __iter__(self):
-        return iter(self._consts)
-
-    def append(self, bel : BasicElement, operation : PartOperationEnum = PartOperationEnum.ADD):
-        pelement = BodyElement(bel, operation)
-        self._consts.append(pelement)
-
-    def rotate(self, axis : AxisEnum, deg : float):
-        answ = self.clone()
-        for i in range(len(self._consts)):
-            answ._consts[i]._element = self._consts[i].element.rotate(axis, deg)
-
-        return answ
-
-class Part(object):
-    def __init__(self, *bodies):
-        self._bodies = []
-        for body in bodies:
-            self._bodies.append(body)
-
-    def append(self, body : Body):
-        self._bodies.append(body)
-
-    def __getitem__(self, idx):
-         return self._bodies[idx]
-
-    def __len__(self):
-        return len(self._bodies)
-
-    def __iter__(self):
-        return iter(self._bodies)
 
 
 class DimensionedElement(BasicElement):

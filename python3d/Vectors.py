@@ -12,6 +12,10 @@ class Vector3(object):
 
     def __str__(self):
         return "Vector3d: x:{}, y:{}, z:{}, l:{}".format(self.x, self.y, self.z, self.norm())
+
+    def __repr__(self):
+        return "Vector3d: x:{}, y:{}, z:{}, l:{}".format(self.x, self.y, self.z, self.norm())
+
         
     def __getitem__(self, key: int) -> float:
         if key==0: return self._x
@@ -35,7 +39,7 @@ class Vector3(object):
             return False
 
     def __add__(self, other):
-        if not type(other) is Vector3: raise Exception("Addition of Vector2 and {} is not declared".format(type(other).__name__))
+        if not type(other) is Vector3: raise Exception("Addition of Vector3 and {} is not declared".format(type(other).__name__))
 
         return Vector3(self.x + other.x, self.y + other.y, self.z + other.z)
 
