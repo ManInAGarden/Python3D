@@ -1,11 +1,12 @@
 from .ElementClasses import *
 
 class BodyOperationEnum(Enum):
-    ADD = 1
-    SUBTRACT = 2
+    UNION = 1 
+    INTERSECTION = 2
+    DIFFERENCE = 3
 
 class BodyElement(object):
-    def __init__(self, element : BasicElement, operation : BodyOperationEnum = BodyOperationEnum.ADD, quality : int = 100):
+    def __init__(self, element : BasicElement, operation : BodyOperationEnum = BodyOperationEnum.UNION, quality : int = 100):
         self._element = element
         self._operation = operation
         self._quality = quality
@@ -20,6 +21,10 @@ class BodyElement(object):
     @property
     def quality(self):
         return self._quality
+
+    @property
+    def operation(self):
+        return self._operation
 
     def rotate(self, axis : AxisEnum, deg : float):
         self._element = self._element.rotate(axis, deg)
@@ -54,7 +59,7 @@ class Body(object):
     def __iter__(self):
         return iter(self._elements)
 
-    def append(self, bel : BasicElement, operation : BodyOperationEnum = BodyOperationEnum.ADD, quality=100):
+    def append(self, bel : BasicElement, operation : BodyOperationEnum = BodyOperationEnum.UNION, quality=100):
         pelement = BodyElement(bel, operation, quality=quality)
         self._elements.append(pelement)
 

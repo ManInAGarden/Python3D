@@ -8,16 +8,14 @@ import math
 
 class ElementTest(TestBase):
     def test_boxmesh(self):
-        m = pd.Mesh()
         box = pd.BoxElement(xlength=10, ylength=20, zlength=30).rotate(pd.AxisEnum.XAXIS, 45).rotate(pd.AxisEnum.YAXIS, 45)
-        m.addelement(box)
+        m = pd.Mesh(box)
         self.assertEqual(8, len(m._vertices))
         self.assertEqual(12, len(m._triangles))
 
     def test_box_triangles(self):
-        m = pd.Mesh()
         box = pd.BoxElement(xlength=10, ylength=20, zlength=30)
-        m.addelement(box)
+        m = pd.Mesh(box)
         self.assertEqual(8, len(m._vertices))
         self.assertEqual(12, len(m._triangles))
         normsum = Vector3(0.0, 0.0, 0.0)
@@ -29,9 +27,8 @@ class ElementTest(TestBase):
         self.assertAlmostEqual(0.0, normsum.z)
 
     def test_sphere_triangles(self):
-        m = pd.Mesh()
         elli = pd.EllipsoidElement(radx=10.0, rady=10.0,radz=10.0)
-        m.addelement(elli, quality=10)
+        m = pd.Mesh(elli, 10)
         normsum = Vector3(0.0, 0.0, 0.0)
         for tria in m._triangles:
             normsum += tria[3]
@@ -41,11 +38,10 @@ class ElementTest(TestBase):
         # self.assertAlmostEqual(0.0, normsum.z)
 
     def test_ballmesh(self):
-        m = pd.Mesh()
         ball = pd.EllipsoidElement(0.0, 0.0, 0.0, 10.0, 10.0, 10.0) #this is a sphere
         srad = 10.0
         cent = ball._cent
-        m.addelement(ball, quality=10)
+        m = pd.Mesh(ball, 10)
         self.assertTrue(len(m._vertices) > 0)
         self.assertTrue(len(m._triangles) > 0)
         #check all the vertices to be on the sphere's surface
@@ -54,11 +50,10 @@ class ElementTest(TestBase):
             self.assertAlmostEqual(srad, rad)
 
     def test_ballmeshoutofcentre(self):
-        m = pd.Mesh()
         ball = pd.EllipsoidElement(10.0, -90.0, 52.0, 10.0, 10.0, 10.0) #this is a sphere
         srad = 10.0
         cent = ball._cent
-        m.addelement(ball, quality=10)
+        m = pd.Mesh(ball, 10)
         self.assertTrue(len(m._vertices) > 0)
         self.assertTrue(len(m._triangles) > 0)
         #check all the vertices to be on the sphere's surface
@@ -67,10 +62,9 @@ class ElementTest(TestBase):
             self.assertAlmostEqual(srad, rad)
 
     def test_ellipsoidincentre(self):
-        m = pd.Mesh()
         elli = pd.EllipsoidElement(0.0, 0.0, 0.0, 10.0, 30.0, 20.0) #this is an ellipsoid
         cent = elli._cent
-        m.addelement(elli, quality=10)
+        m = pd.Mesh(elli, 10)
         self.assertTrue(len(m._vertices) > 0)
         self.assertTrue(len(m._triangles) > 0)
         #check all the vertices to be on the sphere's surface
@@ -85,7 +79,7 @@ class ElementTest(TestBase):
         m = pd.Mesh()
         elli = pd.EllipsoidElement(-90.0, 100.0, 12.0, 10.0, 30.0, 20.0) #this is an ellipsoid
         cent = elli._cent
-        m.addelement(elli, quality=10)
+        m = pd.Mesh(elli, 10)
         self.assertTrue(len(m._vertices) > 0)
         self.assertTrue(len(m._triangles) > 0)
         #check all the vertices to be on the sphere's surface
@@ -109,10 +103,22 @@ class ElementTest(TestBase):
         sth = StlHelper(m, fname, StlModeEnum.ASCII)
         sth.write()
 
+    def test_stl_bin(self):
+        fname = "test_stl_bin.stl"
+
+        box = pd.BoxElement(0, 0, 0, 100, 100, 100)
+        body = pd.Body()
+        body.append(box)
+        m = pd.Mesh()
+        m.name = "Boxtestmesh"
+        m.addbody(body)
+        sth = StlHelper(m, fname, StlModeEnum.BINARY)
+        sth.write()
+
     def test_stl_ascii2(self):
         fname = "test_stl_ascii2.stl"
 
-        elli = pd.EllipsoidElement(0, 0, 0, 100, 70, 50)
+        elli = pd.EllipsoidElement(0, 0, 0, 100, 70, 50).rotate(pd.AxisEnum.ZAXIS, 45)
         body = pd.Body()
         body.append(elli, quality=30)
         m = pd.Mesh()

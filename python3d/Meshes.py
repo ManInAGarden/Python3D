@@ -1,24 +1,17 @@
+import sys
+import struct
 from .Bodies import *
 from .Vectors import *
 from .ElementClasses import *
+from .TriTriIntersector import *
 import numpy as np
 import math as ma
 from enum import Enum
 
-class MeshTriangle(object):
-    def __init__(self, pts, n):
-        self._pts = pts
-        self._n = n
-        self._name = "noname"
 
-    @property
-    def pts(self):
-        return self._pts
+   
 
-    @property
-    def n(self):
-        return self._n
-
+class Mesh(object):
     @property
     def name(self):
         return self._name
@@ -27,14 +20,37 @@ class MeshTriangle(object):
     def name(self, value):
         self._name = value
 
-class Mesh(object):
-    def __init__(self):
+    @property
+    def isempty(self):
+        return len(self._vertices) == 0
+
+    def __init__(self, element : BasicElement = None, quality : float = 100):
+        self._name = "noname"
         self._vertices = []
         self._triangles = []
+        self._smallestpt = Vector3(sys.float_info.max, sys.float_info.max, sys.float_info.max)
+        if not element is None:
+            self._addelement(element, quality)
+
+    def clone(self):
+        answ = Mesh()
+        for vertex in self._vertices:
+            answ._vertices.append(vertex)
+        for triangle in self._triangles:
+            answ._triangles.append(triangle)
+        
+        answ._smallestpt = self._smallestpt
+        return answ
 
     def _appendvertex(self, p : Vector3):
         if not p in self._vertices:
             self._vertices.append(p)
+            if p.x < self._smallestpt.x:
+                self._smallestpt.x = p.x
+            if p.y < self._smallestpt.y:
+                self._smallestpt.y = p.y
+            if p.z < self._smallestpt.z:
+                self._smallestpt.z = p.z
 
         return self._vertices.index(p)
 
@@ -49,23 +65,22 @@ class Mesh(object):
         idx3 = self._appendvertex(p3)
         n = (p2-p1).cross(p3-p2)
         nnorm = n.norm()
-        if nnorm==0.0:
-            raise Exception("Scheiße!")
-        n = n/n.norm()
+        assert nnorm > 0.0, "triangle norm vector of zero length encountered. This normally means that two of the triangle points are equal"
+        n = n/nnorm #normalize the triangle norm vector
         self._triangles.append([idx1, idx2, idx3, n])
 
-    def get_resolved_tria(self, idx : int) -> MeshTriangle:
+    def get_resolved_tria(self, idx : int, offset : Vector3 = Vector3(0.0, 0.0, 0.0)) -> MeshTriangle:
         """get a triangle with resolved points an normal vector
         """
         tria = self._triangles[idx]
         n = tria[3]
         pts = []
         for i in range(0,3):
-            pts.append(self._vertices[tria[i]])
+            pts.append(self._vertices[tria[i]] + offset)
 
         return MeshTriangle(pts, n)
 
-    def addelement(self, element, quality = 100):
+    def _addelement(self, element, quality = 100):
         t = type(element)
         if t is BoxElement:
             self._addbox(element)
@@ -73,15 +88,49 @@ class Mesh(object):
             self._addellipsoid(element, quality=quality)
 
     def addbody(self, body : Body):
+        newmesh = self.clone()
         for bdel in body._elements:
-            self.addelement(bdel.element, bdel.quality)
-        #    submesh = Mesh()
-        #    submesh.addelement(bdel.element, bdel.quality)
-        #to be done 
-        #merge the meshes accoring to bodyelement operation (ADD, SUBSTRACT) to create a new single mesh
+            submesh = Mesh(bdel, bdel.quality)
+            newmesh._mergemesh(submesh, bdel.operation)
+
+        return newmesh
+
+    def _mergemesh(self, other, operation):
+        if operation is BodyOperationEnum.UNION:
+            self._mergemesh_union(other)
+        elif operation is BodyOperationEnum.INTERSECTION:
+            self._mergemesh_intersect(other)
+        elif operation is BodyOperationEnum.DIFFERENCE:
+            self._mergemesh_difference(other)
+        else:
+            raise Exception("Unsupported merge operation {}".format(operation))
+
+    def _mergemesh_union(self, other):
+        if self.isempty:
+            self._vertices = other._vertices
+            self._triangles = other._triangles
+        elif other.isempty:
+            return
+
+        #do something now
         
 
+    def _mergemesh_intersect(self, other):
+        if self.isempty:
+            return
+        elif other.isempty:
+            self._vertices = []
+            self._triangles = []
+            self._smallestpt = Vector3(sys.float_info.max, sys.float_info.max, sys.float_info.max)
+        #do something now
 
+
+    def _mergemesh_difference(self, other):
+        if self.isempty or other.isempty:
+            return
+
+        #do something now
+        
     def _addbox(self, box : BoxElement):
         dx = box._dimensions[0]
         dy = box._dimensions[1]
@@ -119,7 +168,7 @@ class Mesh(object):
 
     def _addellipsoid(self, ball : EllipsoidElement, quality):
         formercirc = None
-        currentcirc = []
+        currentcirc = None
         stp = 2*ma.pi/quality
         ec = ball._cent
         rxvec = ball._dimensions[0]
@@ -133,18 +182,17 @@ class Mesh(object):
         rzdir = rzvec/c
         botpt = ec - rzvec
         toppt = ec + rzvec
-        #range = np.arange(-ma.pi/2.0 + stp, ma.pi/2.0, stp)
         for chi in np.arange(-ma.pi/2.0 + stp, ma.pi/2.0, stp):
             formercirc = currentcirc
             currentcirc = []
-            for phi in np.arange(0, 2*ma.pi, stp):
+            for phi in np.arange(0, 2*ma.pi + stp, stp):
                 xi = a * ma.cos(chi) * ma.cos(phi)
                 yi = b * ma.cos(chi) * ma.sin(phi)
                 zi = c * ma.sin(chi)
                 dotpos = ec + rxdir*xi + rydir*yi + rzdir*zi #Vector3(xi, yi, zi)
                 currentcirc.append(dotpos)
 
-            for i in range(len(formercirc)-1):
+            for i in range(len(currentcirc)-1):
                 if formercirc is None:
                     leftformer = rightformer = botpt
                 else:
@@ -154,7 +202,8 @@ class Mesh(object):
                 leftcurrent = currentcirc[i]
                 rightcurrent = currentcirc[i+1]
 
-                self._addtria(leftcurrent, leftformer, rightformer)
+                if leftformer != rightformer:
+                    self._addtria(leftcurrent, leftformer, rightformer)
                 if rightcurrent != leftcurrent:
                     self._addtria(rightcurrent, leftcurrent, rightformer)
 
@@ -173,6 +222,10 @@ class StlHelper(object):
         self._fname = filename
         self._mesh = mesh
         self._mode = mode
+        self._offset = self._mesh._smallestpt
+        if self._offset.x != 0.0: self._offset.x = -self._offset.x
+        if self._offset.y != 0.0: self._offset.y = -self._offset.y
+        if self._offset.z != 0.0: self._offset.z = -self._offset.z
 
     def write(self):
         if self._mode == StlModeEnum.ASCII:
@@ -183,10 +236,10 @@ class StlHelper(object):
             raise Exception("Unsupported stl-Mode {} in save()".format(self._mode))
 
     def _write_ascii(self):
-        with open(self._fname, "w", encoding="UTF-8") as f:
+        with open(self._fname, "wt", encoding="UTF-8") as f:
             f.write("solid {}\n".format(self._mesh.name))
             for i in range(len(self._mesh._triangles)):
-                tria = self._mesh.get_resolved_tria(i)
+                tria = self._mesh.get_resolved_tria(i, self._offset)
                 f.write("\tfacet normal {:e} {:e} {:e}\n".format(tria.n.x, tria.n.y, tria.n.z))
                 f.write("\t\touter loop\n")
                 for vi in range(3):
@@ -197,6 +250,22 @@ class StlHelper(object):
             
 
     def _write_binary(self):
-        raise NotImplementedError()
+        header = bytes(80)
+        filler = bytes(2)
+        numtrias = len(self._mesh._triangles)
+        with open(self._fname, "wb") as f:
+            f.write(header)
+            f.write(numtrias.to_bytes(4, sys.byteorder, signed=False))
+            for i in range(numtrias):
+                tria = self._mesh.get_resolved_tria(i, self._offset)
+                self._write_floatvec(f, tria.n)
+                
+                for vi in range(3):
+                    self._write_floatvec(f, tria.pts[vi])
 
+                f.write(filler)                
 
+    def _write_floatvec(self, f, vec : Vector3):
+        flts = [vec.x, vec.y, vec.z]
+        s = struct.pack('f'*len(flts), *flts)
+        f.write(s)

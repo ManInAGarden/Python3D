@@ -3,3 +3,4 @@ from .Meshes import *
 from .Vectors import *
 from .Bodies import *
 from .Parts import *
+from .TriTriIntersector import *
