@@ -1,3 +1,4 @@
+from python3d.Bodies import Body
 from python3d.ElementClasses import BoxElement
 from python3d.Meshes import StlHelper, StlModeEnum
 from python3d.Vectors import Vector3
@@ -48,6 +49,17 @@ class ElementTest(TestBase):
         for pt in m._vertices:
             rad = (pt-cent).norm()
             self.assertAlmostEqual(srad, rad)
+
+    def test_two_ball_merge(self):
+        ball1 = pd.EllipsoidElement(0.0, 0.0, 0.0, 10.0, 10.0, 10.0) #this is a sphere
+        ball2 = pd.EllipsoidElement(0.0, 0.0, 0.0, 10.0, 10.0, 10.0).translate(8.0,0.0, 0.0)
+        body = pd.Body()
+        body.append(ball1, quality=20)
+        body.append(ball2,  quality=20)
+        m = pd.Mesh()
+        m.addbody(body)
+        sth = StlHelper(m, "two_balls_ascii.stl", StlModeEnum.ASCII)
+        sth.write()
 
     def test_ballmeshoutofcentre(self):
         ball = pd.EllipsoidElement(10.0, -90.0, 52.0, 10.0, 10.0, 10.0) #this is a sphere
@@ -116,11 +128,12 @@ class ElementTest(TestBase):
         sth.write()
 
     def test_stl_ascii2(self):
+        return
         fname = "test_stl_ascii2.stl"
 
         elli = pd.EllipsoidElement(0, 0, 0, 100, 70, 50).rotate(pd.AxisEnum.ZAXIS, 45)
         body = pd.Body()
-        body.append(elli, quality=30)
+        body.append(elli, quality=20)
         m = pd.Mesh()
         m.name = "Ellipsoidtestmesh"
         m.addbody(body)

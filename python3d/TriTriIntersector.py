@@ -15,6 +15,13 @@ class MeshTriangle(object):
     def n(self):
         return self._n
 
+    def __eq__(self, other):
+        # n is always equal when all the vertices are equal, so no need to check that here.
+        return self.pts[0]==other.pts[0] and self.pts[1]==other.pts[1] and self.pts[2]==other.pts[2]
+
+    def __str__(self) -> str:
+        return "MeshTriangle: [p1: {} p2: {} p3: {}] n: {}".format(self.pts[0], self.pts[1], self.pts[2], self.n)
+
 class TriTriIsectResultEnum(Enum):
     DONTINTERSECT = 1
     COPLANARINTERSECT = 2
@@ -41,7 +48,13 @@ class TriTriIntersectResult(object):
 
     
 class TriTriIntersector(object):
-    def __init__(self, t1 : MeshTriangle, t2 : MeshTriangle, epsi = None) -> None:
+    def __init__(self, t1 : MeshTriangle, t2 : MeshTriangle, epsi = 1.0e-11) -> None:
+        assert(type(t1) is MeshTriangle)
+        assert(type(t2) is MeshTriangle)
+        assert(type(t1.pts) is list)
+        assert(type(t2.pts) is list)
+        assert(len(t1.pts)==3)
+        assert(len(t2.pts)==3)
         self._v = t1
         self._u = t2
         self._epsi = epsi
@@ -60,7 +73,7 @@ class TriTriIntersector(object):
 
     def getisectline(self) -> TriTriIntersectResult:
         """get intersectionline for the two triangles
-           returns an instance of TriTriIntersctResulst which contains a status and if status is DOINTERSECT
+           returns an instance of TriTriIntersectResults which contains a status and if status is DOINTERSECT
            also contains tow points of type Vector3 which denote the start end end point of the intersection line.
         """
 
@@ -136,15 +149,18 @@ class TriTriIntersector(object):
                                                                         vp0,vp1,vp2,
                                                                         dv0,dv1,dv2,
                                                                         dv0dv1,dv0dv2)
-        if iscoplanar:
+        if iscoplanar is True:
             return self.coplanar_tri_tri(v, u)
 
         # compute interval for triangle 2 //quoted from Moeller//
-        iscoplanar, isect2,isectpointB1,isectpointB2 = self.compute_intervals_isectline(u,
+        iscoplanar2, isect2,isectpointB1,isectpointB2 = self.compute_intervals_isectline(u,
                                                                         up0,up1,up2,
                                                                         du0,du1,du2,
                                                                         du0du1,du0du2)
         #we know iscoplanar must be false here, so we don't ask again
+        if iscoplanar2:
+            raise Exception("iscoplanar problem here with traingles: u: {} and v: {}".format(u, v))
+
         isect1, smallest1 = self._sort_interval(isect1)
         isect2, smallest2 = self._sort_interval(isect2)
 

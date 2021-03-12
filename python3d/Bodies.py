@@ -40,7 +40,7 @@ class Body(object):
     """a body basically is a list of graphical elements which can be translated, scaled, rotated like
     a single element. 
     """
-    def __init__(self):
+    def __init__(self, *args):
         self._elements = []
 
     def clone(self):

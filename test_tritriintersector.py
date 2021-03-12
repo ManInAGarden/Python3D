@@ -38,11 +38,11 @@ class TriTriIntersectorTest(TestBase):
         tti = pd.TriTriIntersector(t1, t2)
         erg = tti.getisectline()
         self.assertIsNotNone(erg)
-        self.assertEqual(pd.TriTriIsectResultEnum.TINTERSECT, erg.status)
+        self.assertEqual(pd.TriTriIsectResultEnum.INTERSECT, erg.status)
         #triangles are flat in x/y and x/z so that intersection line only differs in x
         self.assertEqual(erg.p1.y, erg.p2.y)
         self.assertEqual(erg.p1.z, erg.p2.z)
-   
+
 
     def getvertices(self, *triangles):
         answ = []
