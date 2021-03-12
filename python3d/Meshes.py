@@ -1,5 +1,7 @@
 import sys
 import struct
+
+from numpy.lib.type_check import isreal
 from .Bodies import *
 from .Vectors import *
 from .ElementClasses import *
@@ -23,6 +25,14 @@ class Mesh(object):
     @property
     def isempty(self):
         return len(self._vertices) == 0
+
+    @property
+    def triangles(self):
+        return self._triangles
+
+    @property
+    def vertices(self):
+        return self._vertices
 
     def __init__(self, element : BasicElement = None, quality : float = 100):
         self._name = "noname"
@@ -88,12 +98,9 @@ class Mesh(object):
             self._addellipsoid(element, quality=quality)
 
     def addbody(self, body : Body):
-        newmesh = self.clone()
         for bdel in body._elements:
-            submesh = Mesh(bdel, bdel.quality)
-            newmesh._mergemesh(submesh, bdel.operation)
-
-        return newmesh
+            submesh = Mesh(bdel.element, bdel.quality)
+            self._mergemesh(submesh, bdel.operation)
 
     def _mergemesh(self, other, operation):
         if operation is BodyOperationEnum.UNION:
@@ -109,11 +116,61 @@ class Mesh(object):
         if self.isempty:
             self._vertices = other._vertices
             self._triangles = other._triangles
+            self._smallestpt = other._smallestpt
+            return
         elif other.isempty:
             return
 
-        #do something now
-        
+        futuretri = []
+        futureverts = []
+        for oldi in range(len(self.triangles)):
+            stria = self.get_mesh_tria(oldi)
+            strianotadded = True
+            for otheri in range(len(other.triangles)):
+                otria = other.get_mesh_tria(otheri)
+                tti = TriTriIntersector(stria, otria)
+                isecres = tti.getisectline()
+                if isecres.status is TriTriIsectResultEnum.DONTINTERSECT:
+                    pass
+                    add_mesh_trias_on(futuretri, futureverts, otria)
+                    if strianotadded: 
+                        add_mesh_trias_on(futuretri, futureverts, stria)
+                        strianotadded = False
+                elif isecres.status is TriTriIsectResultEnum.COPLANARDONTINTERSECT:
+                    pass
+                    add_mesh_trias_on(futuretri, futureverts, otria)
+                    if strianotadded: 
+                        add_mesh_trias_on(futuretri, futureverts, stria)
+                        strianotadded = False
+                elif isecres.status is TriTriIsectResultEnum.INTERSECT:
+                    pass
+                    # add_mesh_trias_on(futuretri, futureverts, otria)
+                    # if strianotadded: 
+                    #     add_mesh_trias_on(futuretri, futureverts, stria)
+                    #     strianotadded = False
+                else: #they intersect and are coplanar
+                    pass
+
+        self._vertices = futureverts
+        self._triangles = futuretri
+        self._smallestpt = getsmallestpt(futureverts)
+
+    def _add_mesh_trias(self, *trias):
+        """add one or more mesh-triangles to the mesh
+        """
+        for tria in trias:
+            idx1 = self._appendvertex(tria.pts[0])
+            idx2 = self._appendvertex(tria.pts[1])
+            idx3 = self._appendvertex(tria.pts[2])
+            self._triangles.append([idx1, idx2, idx3, tria.n])
+
+    def get_mesh_tria(self, idx : int) -> MeshTriangle:
+        """get a MeshTriangle addressed by idx
+        """
+        return MeshTriangle([self._vertices[self._triangles[idx][0]],
+            self._vertices[self._triangles[idx][1]],
+            self._vertices[self._triangles[idx][2]]],
+            self._triangles[idx][3])
 
     def _mergemesh_intersect(self, other):
         if self.isempty:
@@ -212,6 +269,39 @@ class Mesh(object):
             leftformer = currentcirc[i]
             rightformer = currentcirc[i+1]
             self._addtria(leftcurrent, leftformer, rightformer)
+
+
+def add_mesh_trias_on(triangles, vertices, *mtrias):
+    """add a mesh_triangle to a given list ao triangles and vertices
+    """
+    for mt in mtrias:
+        idx1 = appendvertex_on(vertices, mt.pts[0])
+        idx2 = appendvertex_on(vertices, mt.pts[1])
+        idx3 = appendvertex_on(vertices, mt.pts[2])
+        if not tria_in(triangles, [idx1, idx2, idx3, mt.n]):
+            triangles.append([idx1, idx2, idx3, mt.n])
+
+def tria_in(triangles, stria):
+    return stria in triangles
+
+def appendvertex_on(vertices, pt : Vector3) -> int:
+    """Append a vertex on the given list of vertices and return its new (or old) index
+    When the point is already present in the list of vertices no new point is added. Instead the
+    index of the existing pt is returned
+    """
+    if not pt in vertices:
+        vertices.append(pt)
+            
+    return vertices.index(pt)
+
+def getsmallestpt(verts):
+    answ = Vector3(sys.float_info.max, sys.float_info.max, sys.float_info.max)
+    for vert in verts:
+        if vert.x < answ.x: answ.x = vert.x
+        if vert.y < answ.y: answ.y = vert.y
+        if vert.z < answ.z: answ.z = vert.z
+
+    return answ
 
 class StlModeEnum(Enum):
     ASCII = 1
