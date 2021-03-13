@@ -3,7 +3,7 @@ import struct
 
 from numpy.lib.type_check import isreal
 from .Bodies import *
-from .Vectors import *
+from .Polygons import *
 from .ElementClasses import *
 from .TriTriIntersector import *
 import numpy as np
@@ -74,12 +74,12 @@ class Mesh(object):
         idx2 = self._appendvertex(p2)
         idx3 = self._appendvertex(p3)
         n = (p2-p1).cross(p3-p2)
-        nnorm = n.norm()
+        nnorm = n.magnitude()
         assert nnorm > 0.0, "triangle norm vector of zero length encountered. This normally means that two of the triangle points are equal"
         n = n/nnorm #normalize the triangle norm vector
         self._triangles.append([idx1, idx2, idx3, n])
 
-    def get_resolved_tria(self, idx : int, offset : Vector3 = Vector3(0.0, 0.0, 0.0)) -> MeshTriangle:
+    def get_resolved_tria(self, idx : int, offset : Vector3 = Vector3([0.0, 0.0, 0.0])) -> MeshTriangle:
         """get a triangle with resolved points an normal vector
         """
         tria = self._triangles[idx]
@@ -231,9 +231,9 @@ class Mesh(object):
         rxvec = ball._dimensions[0]
         ryvec = ball._dimensions[1]
         rzvec = ball._dimensions[2]
-        a = rxvec.norm()
-        b = ryvec.norm()
-        c = rzvec.norm()
+        a = rxvec.magnitude()
+        b = ryvec.magnitude()
+        c = rzvec.magnitude()
         rxdir = rxvec/a
         rydir = ryvec/b
         rzdir = rzvec/c

@@ -68,8 +68,7 @@ class Body(object):
         """
         answ = self.clone()
         for i in range(len(self._elements)):
-            answ._elements[i]._element = self._elements[i].element.rotate(axis, deg)
-
+           answ._elements[i]._element = self._elements[i].element.rotate(axis, deg)
         return answ
 
     def scale(self, sx : float, sy : float, sz : float):

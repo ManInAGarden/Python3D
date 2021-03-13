@@ -2,14 +2,16 @@ import math as ma
 import numpy as np
 from enum import Enum
 
-from .Vectors import *
+from numpy.compat.py3k import npy_load_module
+
+from .Polygons import *
 
 
 class Transformer():
-    def __init__(self, tmat=None):
+    def __init__(self, tmat : np.array=None):
         self._tmat = tmat
 
-    def addtrans(self, tmat):
+    def addtrans(self, tmat : np.array):
         if self._tmat is None:
             self._tmat = tmat
             return
@@ -17,9 +19,9 @@ class Transformer():
         self._tmat = np.dot(tmat, self._tmat)
 
     def transform(self, vec : Vector3):
-        ivec = vec.nparray(1.0)
+        ivec = vec.nparray(1.0).T
         answ = np.dot(self._tmat, ivec)
-        return Vector3(answ[0], answ[1], answ[2])
+        return Vector3.newFromXYZ(answ[0], answ[1], answ[2]) #we have to do it like this to get rid off the n-dimension
 
     def scaleinit(self, sx, sy, sz):
         tmat = np.array([
@@ -87,7 +89,7 @@ class AxisEnum(Enum):
 
 class BasicElement:
     def __init__(self, centx, centy, centz):
-        self._cent = Vector3(centx, centy, centz)
+        self._cent = Vector3.newFromXYZ(centx, centy, centz)
 
     def rotate(self, axis : AxisEnum, deg : float):
         raise NotImplementedError("rotate(): Override me!")
@@ -101,14 +103,10 @@ class BasicElement:
     def getmesh(self):
         raise NotImplementedError("getmesh(): Override me!")
 
-
-
-
-
 class DimensionedElement(BasicElement):
     def __init__(self, centx=0.0, centy=0.0, centz=0.0, xdim=1.0, ydim=1.0, zdim=1.0):
         super().__init__(centx, centy, centz)
-        self._dimensions = [Vector3(0.0, 0.0, 0.0) for i in range(3)]
+        self._dimensions = [Vector3([0.0, 0.0, 0.0]) for i in range(3)]
         self._dimensions[0].x = xdim
         self._dimensions[1].y = ydim
         self._dimensions[2].z = zdim

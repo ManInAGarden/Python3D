@@ -1,4 +1,4 @@
-from .Vectors import *
+from .Polygons import *
 import math as ma
 from enum import Enum
 

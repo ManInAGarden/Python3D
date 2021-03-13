@@ -80,9 +80,9 @@ class ElementTest(TestBase):
         self.assertTrue(len(m._vertices) > 0)
         self.assertTrue(len(m._triangles) > 0)
         #check all the vertices to be on the sphere's surface
-        asq = elli._dimensions[0].norm()**2
-        bsq = elli._dimensions[1].norm()**2
-        csq = elli._dimensions[2].norm()**2
+        asq = elli._dimensions[0].magnitude()**2
+        bsq = elli._dimensions[1].magnitude()**2
+        csq = elli._dimensions[2].magnitude()**2
         for pt in m._vertices:
             chkval = pt.x**2/asq + pt.y**2/bsq + pt.z**2/csq
             self.assertAlmostEqual(1.0, chkval)
@@ -95,9 +95,9 @@ class ElementTest(TestBase):
         self.assertTrue(len(m._vertices) > 0)
         self.assertTrue(len(m._triangles) > 0)
         #check all the vertices to be on the sphere's surface
-        asq = elli._dimensions[0].norm()**2
-        bsq = elli._dimensions[1].norm()**2
-        csq = elli._dimensions[2].norm()**2
+        asq = elli._dimensions[0].magnitude()**2
+        bsq = elli._dimensions[1].magnitude()**2
+        csq = elli._dimensions[2].magnitude()**2
         for ptr in m._vertices:
             pt = ptr - cent
             chkval = pt.x**2/asq + pt.y**2/bsq + pt.z**2/csq
