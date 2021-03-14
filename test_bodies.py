@@ -6,11 +6,11 @@ class TestBodies(TestBase):
     def test_simple_creation(self):
         bod = pd.Body()
         cb = pd.EllipsoidElement(radx=100, rady=100, radz=100.0)
-        bod.append(cb)
+        bod.addelement(cb)
         numouter = 4
         for i in range(numouter):
             b = pd.EllipsoidElement(radx=10.0, rady=10, radz=10).translate(tx=100.0).rotate(pd.AxisEnum.ZAXIS, i*360.0/numouter)
-            bod.append(b)
+            bod.addelement(b)
 
         prot = bod.rotate(pd.AxisEnum.YAXIS, 90.0)
         centreball = bod[0].element

@@ -40,13 +40,13 @@ class Body(object):
     """a body basically is a list of graphical elements which can be translated, scaled, rotated like
     a single element. 
     """
-    def __init__(self, *args):
+    def __init__(self):
         self._elements = []
 
     def clone(self):
-        answ = type(self)()
-        for const in self._elements:
-            answ._elements.append(const.clone())
+        answ = Body()
+        for element in self._elements:
+            answ._elements.append(element.clone())
 
         return answ
 
@@ -59,9 +59,10 @@ class Body(object):
     def __iter__(self):
         return iter(self._elements)
 
-    def append(self, bel : BasicElement, operation : BodyOperationEnum = BodyOperationEnum.UNION, quality=100):
+    def addelement(self, bel : BasicElement, operation : BodyOperationEnum = BodyOperationEnum.UNION, quality=100):
         pelement = BodyElement(bel, operation, quality=quality)
         self._elements.append(pelement)
+        return self
 
     def rotate(self, axis : AxisEnum, deg : float):
         """rotate the body with all it's elements arount a giben axis by a given angle (0-360 deg)
@@ -88,3 +89,4 @@ class Body(object):
             answ._elements[i]._element = self._elements[i].element.translate(tx, ty, tz)
 
         return answ
+

@@ -100,8 +100,9 @@ class BasicElement:
     def scale(self, x : float, y : float, z : float):
         raise NotImplementedError("scale(): Override me!")
 
-    def getmesh(self):
-        raise NotImplementedError("getmesh(): Override me!")
+    def get_polygons(self):
+        raise NotImplementedError("getpolygons(): Override me!")
+
 
 class DimensionedElement(BasicElement):
     def __init__(self, centx=0.0, centy=0.0, centz=0.0, xdim=1.0, ydim=1.0, zdim=1.0):
