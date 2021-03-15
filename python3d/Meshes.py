@@ -1,5 +1,5 @@
-from python3d.ElementClasses import BasicElement, BoxElement, EllipsoidElement
-from python3d.Bodies import Body, BodyOperationEnum
+from .ElementClasses import *
+from .Bodies import *
 import sys
 import struct
 from .Polygons import *
@@ -15,12 +15,21 @@ class Mesh(object):
 
     def __init__(self, body=None):
         self.btsource = None
+        self.name = "unknkown"
         if not body is None:
             self._addbody(body)
 
     def clone(self):
         answ = Mesh()
         answ.btsource = self.btsource.clone()
+
+    def get_all_polygons(self) -> list:
+        """get all polygons from the bt recursively
+        """
+        if self.btsource is None:
+            return []
+
+        return self.btsource.get_deep_polygons()
 
     def _addbody(self, body):
         """add an instance of Body to the mesh by extracting and adding its polygons
@@ -42,6 +51,59 @@ class Mesh(object):
             return self._create_ellipsoidmesh(ele, quality)
         else:
             raise Exception("Unknonw element type <{}> in _create_mesh".format(tele.__name__))
+
+    def _create_ellipsoidmesh(self, ball : EllipsoidElement, quality):
+        polygons = []
+        formercirc = None
+        currentcirc = None
+        stp = 2*ma.pi/quality
+        ec = ball._cent
+        rxvec = ball._dimensions[0]
+        ryvec = ball._dimensions[1]
+        rzvec = ball._dimensions[2]
+        a = rxvec.magnitude()
+        b = ryvec.magnitude()
+        c = rzvec.magnitude()
+        rxdir = rxvec/a
+        rydir = ryvec/b
+        rzdir = rzvec/c
+        botpt = ec - rzvec
+        toppt = ec + rzvec
+        for chi in np.arange(-ma.pi/2.0 + stp, ma.pi/2.0, stp):
+            formercirc = currentcirc
+            currentcirc = []
+            for phi in np.arange(0, 2*ma.pi + stp, stp):
+                xi = a * ma.cos(chi) * ma.cos(phi)
+                yi = b * ma.cos(chi) * ma.sin(phi)
+                zi = c * ma.sin(chi)
+                dotpos = ec + rxdir*xi + rydir*yi + rzdir*zi #Vector3(xi, yi, zi)
+                currentcirc.append(dotpos)
+
+            for i in range(len(currentcirc)-1):
+                if formercirc is None:
+                    leftformer = rightformer = botpt
+                else:
+                    leftformer = formercirc[i]
+                    rightformer = formercirc[i+1]
+
+                leftcurrent = currentcirc[i]
+                rightcurrent = currentcirc[i+1]
+
+                if leftformer != rightformer:
+                    polygons.append(Polygon([Vertex(leftcurrent), Vertex(leftformer), Vertex(rightformer)]))
+                if rightcurrent != leftcurrent:
+                    polygons.append(Polygon([Vertex(rightcurrent), Vertex(leftcurrent),  Vertex(rightformer)]))
+
+        for i in range(len(formercirc)-1):
+            rightcurrent = leftcurrent = toppt
+            leftformer = currentcirc[i]
+            rightformer = currentcirc[i+1]
+            polygons.append(Polygon([Vertex(leftcurrent), Vertex(leftformer), Vertex(rightformer)]))
+
+        answ = Mesh()
+        answ.btsource = BTNode(polygons)
+
+        return answ
 
     def _create_boxmesh(self, box : BoxElement):
         polygons = []
@@ -83,8 +145,7 @@ class Mesh(object):
 
     def _get_polygon(self, *pts):
         assert len(pts)>2, "get_polygon needs at least three points to produce a valid polygon"
-        n = (pts[1]-pts[0].cross(pts[2]-pts[1])).unit()
-        vertices = list(map(Vertex, pts, [n]*len(pts)))
+        vertices = list(map(Vertex, pts))
         return Polygon(vertices)
 
     def _mergemesh(self, mmesh, operation : BodyOperationEnum):
@@ -102,6 +163,46 @@ class Mesh(object):
             raise NotImplementedError("Unknown mesh operation <{}> in Mesh._mergemesh()".format(operation))
 
 
+    def _unionmergemesh(self, other):
+        """merge another mesh to self and apply the union operation
+        """
+        a = self.btsource.clone()
+        b = other.btsource.clone()
+        a.cutout(b)
+        b.cutout(a)
+        b.invert()
+        b.cutout(a)
+        b.invert()
+        a.addtree(b)
+        self.btsource = a
+
+    def _diffmergemesh(self, other):
+        """merge another mesh to self and apply the union operation
+        """
+        a = self.btsource.clone()
+        b = other.btsource.clone()
+        a.invert()
+        a.cutout(b)
+        b.cutout(a)
+        b.invert()
+        b.cutout(a)
+        b.invert()
+        a.addtree(b)
+        a.invert()
+        self.btsource = a
+
+    def _intermergemesh(self, other):
+        a = self.btsource.clone()
+        b = other.btsource.clone()
+        a.invert()
+        b.cutout(a)
+        b.invert()
+        a.cutout(b)
+        b.cutout(a)
+        a.addtree(b)
+        a.invert()
+        self.btsource = a
+
         
 
 
@@ -114,12 +215,22 @@ class StlHelper(object):
         self._fname = filename
         self._mesh = mesh
         self._mode = mode
-        self._offset = self._mesh._smallestpt
-        if self._offset.x != 0.0: self._offset.x = -self._offset.x
-        if self._offset.y != 0.0: self._offset.y = -self._offset.y
-        if self._offset.z != 0.0: self._offset.z = -self._offset.z
+        self.polygons = self._mesh.get_all_polygons()
+        self._offset = self._get_offset()
+        
+
+    def _get_offset(self):
+        smallest = Vector3([sys.float_info.max]*3)
+        for poly in self.polygons:
+            for vert in poly.vertices:
+                for i in range(3):
+                    if vert.pos[i] < smallest[i]: smallest[i] = vert.pos[i]
+
+        return smallest
 
     def write(self):
+        self.triangularize()
+
         if self._mode == StlModeEnum.ASCII:
             self._write_ascii()
         elif self._mode == StlModeEnum.BINARY:
@@ -127,15 +238,28 @@ class StlHelper(object):
         else:
             raise Exception("Unsupported stl-Mode {} in save()".format(self._mode))
 
+    def triangularize(self):
+        """polygons may have more then 3 vertices
+            stl only allows triangles ...
+        """
+        newpolygons = []
+        for poly in self.polygons:
+            newpolygons.extend(poly.to_triangles())
+
+        self.polygons = newpolygons
+
     def _write_ascii(self):
         with open(self._fname, "wt", encoding="UTF-8") as f:
             f.write("solid {}\n".format(self._mesh.name))
-            for i in range(len(self._mesh._triangles)):
-                tria = self._mesh.get_resolved_tria(i, self._offset)
-                f.write("\tfacet normal {:e} {:e} {:e}\n".format(tria.n.x, tria.n.y, tria.n.z))
+            for poly in self.polygons:
+                f.write("\tfacet normal {:e} {:e} {:e}\n".format(poly.plane.n.x, poly.plane.n.y, poly.plane.n.z))
                 f.write("\t\touter loop\n")
-                for vi in range(3):
-                    f.write("\t\t\tvertex {:e} {:e} {:e}\n".format(tria.pts[vi].x, tria.pts[vi].y, tria.pts[vi].z))
+                i = 0
+                for vert in poly.vertices:
+                    i += 1
+                    if i > 3: raise Exception("polygon with more than 3 vertices encountered!!!")
+                    myv = vert.pos - self._offset
+                    f.write("\t\t\tvertex {:e} {:e} {:e}\n".format(myv.x,myv.y,myv.z))
                 f.write("\t\tendloop\n")
                 f.write("\tendfacet\n")        
             f.write("endsolid {}\n".format(self._mesh.name))
@@ -144,16 +268,18 @@ class StlHelper(object):
     def _write_binary(self):
         header = bytes(80)
         filler = bytes(2)
-        numtrias = len(self._mesh._triangles)
+        numtrias = len(self.polygons)
         with open(self._fname, "wb") as f:
             f.write(header)
             f.write(numtrias.to_bytes(4, sys.byteorder, signed=False))
-            for i in range(numtrias):
-                tria = self._mesh.get_resolved_tria(i, self._offset)
-                self._write_floatvec(f, tria.n)
+            for poly in self.polygons:
+                self._write_floatvec(f, poly.plane.n)
                 
-                for vi in range(3):
-                    self._write_floatvec(f, tria.pts[vi])
+                ct = 0
+                for vert in poly.vertices:
+                    ct += 1
+                    if ct > 3: raise Exception("Polygon with more then 3 vertices encountered in _write_binary()")
+                    self._write_floatvec(f, vert.pos)
 
                 f.write(filler)                
 

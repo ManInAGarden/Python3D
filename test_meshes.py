@@ -1,4 +1,5 @@
-from python3d.Bodies import Body
+from numpy.core.arrayprint import _leading_trailing
+from numpy.lib.polynomial import poly
 from TestBase import *
 import unittest
 import python3d as pd
@@ -7,58 +8,92 @@ import math
 class ElementTest(TestBase):
     def test_boxmesh(self):
         box = pd.BoxElement(xlength=10, ylength=20, zlength=30).rotate(pd.AxisEnum.XAXIS, 45).rotate(pd.AxisEnum.YAXIS, 45)
-        b = Body().addelement(box)
+        b = pd.Body().addelement(box)
         m = pd.Mesh(b)
         self.assertIsNotNone(m.btsource)
 
 
-    # def test_box_triangles(self):
-    #     box = pd.BoxElement(xlength=10, ylength=20, zlength=30)
-    #     body = Body(box)
-    #     m = pd.Mesh()
-    #     self.assertEqual(8, len(m._vertices))
-    #     self.assertEqual(12, len(m._triangles))
-    #     normsum = pd.Vector3.newFromXYZ(0.0, 0.0, 0.0)
-    #     for tria in m._triangles:
-    #         normsum += tria[3]
+    def test_box_polygons(self):
+        box = pd.BoxElement(xlength=10, ylength=20, zlength=30)
+        body = pd.Body().addelement(box)
+        m = pd.Mesh(body)
+        polygons = m.get_all_polygons()
 
-    #     self.assertAlmostEqual(0.0, normsum.x)
-    #     self.assertAlmostEqual(0.0, normsum.y)
-    #     self.assertAlmostEqual(0.0, normsum.z)
+        self.assertEqual(12, len(polygons))
+        normsum = pd.Vector3.newFromXYZ(0.0, 0.0, 0.0)
+        for poly in polygons:
+            normsum += poly.plane.n
+            self.assertGreater(len(poly.vertices), 2)
 
-    # def test_sphere_triangles(self):
-    #     elli = pd.EllipsoidElement(radx=10.0, rady=10.0,radz=10.0)
-    #     m = pd.Mesh(elli, 10)
-    #     normsum = Vector3(0.0, 0.0, 0.0)
-    #     for tria in m._triangles:
-    #         normsum += tria[3]
+        self.assertAlmostEqual(0.0, normsum.x)
+        self.assertAlmostEqual(0.0, normsum.y)
+        self.assertAlmostEqual(0.0, normsum.z)
 
-    #     # self.assertAlmostEqual(0.0, normsum.x)
-    #     # self.assertAlmostEqual(0.0, normsum.y)
-    #     # self.assertAlmostEqual(0.0, normsum.z)
+    def test_box_union(self):
+        b1 = pd.BoxElement(xlength=15,ylength=15,zlength=15).translate(-7.5, -7.5, -7.5)
+        b2 = pd.BoxElement(xlength=30, ylength=5, zlength=5).translate(-15, -2.5, -2.5)
+        body = pd.Body().addelement(b1)
+        body.addelement(b2) #union is default operation
+        m = pd.Mesh(body)
+        self.assertIsNotNone(m.btsource)
 
-    # def test_ballmesh(self):
-    #     ball = pd.EllipsoidElement(0.0, 0.0, 0.0, 10.0, 10.0, 10.0) #this is a sphere
-    #     srad = 10.0
-    #     cent = ball._cent
-    #     m = pd.Mesh(ball, 10)
-    #     self.assertTrue(len(m._vertices) > 0)
-    #     self.assertTrue(len(m._triangles) > 0)
-    #     #check all the vertices to be on the sphere's surface
-    #     for pt in m._vertices:
-    #         rad = (pt-cent).norm()
-    #         self.assertAlmostEqual(srad, rad)
+        fname = "test_stl_boxuinion.stl"
+        m.name = "Boxuniontest"
+        sth = pd.StlHelper(m, fname, pd.StlModeEnum.ASCII)
+        sth.write()
 
-    # def test_two_ball_merge(self):
-    #     ball1 = pd.EllipsoidElement(0.0, 0.0, 0.0, 10.0, 10.0, 10.0) #this is a sphere
-    #     ball2 = pd.EllipsoidElement(0.0, 0.0, 0.0, 10.0, 10.0, 10.0).translate(8.0,0.0, 0.0)
-    #     body = pd.Body()
-    #     body.append(ball1, quality=20)
-    #     body.append(ball2,  quality=20)
-    #     m = pd.Mesh()
-    #     m.addbody(body)
-    #     sth = StlHelper(m, "two_balls_ascii.stl", StlModeEnum.ASCII)
-    #     sth.write()
+    def test_box_difference(self):
+        b1 = pd.BoxElement(xlength=15,ylength=15,zlength=15).translate(-7.5, -7.5, -7.5)
+        b2 = pd.BoxElement(xlength=30, ylength=5, zlength=5).translate(-15, -2.5, -2.5)
+        body = pd.Body().addelement(b1)
+        body.addelement(b2, pd.BodyOperationEnum.DIFFERENCE) 
+        m = pd.Mesh(body)
+        self.assertIsNotNone(m.btsource)
+
+        fname = "test_stl_boxdifference.stl"
+        m.name = "Boxdifferencetest"
+        sth = pd.StlHelper(m, fname, pd.StlModeEnum.ASCII)
+        sth.write()
+
+    def test_box_intersect(self):
+        b1 = pd.BoxElement(xlength=15,ylength=15,zlength=15).translate(-7.5, -7.5, -7.5)
+        b2 = pd.BoxElement(xlength=30, ylength=5, zlength=5).translate(-15, -2.5, -2.5)
+        body = pd.Body().addelement(b1)
+        body.addelement(b2, pd.BodyOperationEnum.INTERSECTION) 
+        m = pd.Mesh(body)
+        self.assertIsNotNone(m.btsource)
+
+        fname = "test_stl_intersect.stl"
+        m.name = "Boxintersecttest"
+        sth = pd.StlHelper(m, fname, pd.StlModeEnum.ASCII)
+        sth.write()
+
+    def test_sphere_polygons(self):
+        elli = pd.EllipsoidElement(radx=10.0, rady=10.0,radz=10.0)
+        body = pd.Body().addelement(elli, quality=20)
+        m = pd.Mesh(body)
+        cent = elli._cent
+        normsum = pd.Vector3([0.0, 0.0, 0.0])
+        srad = 10.0
+        for poly in m.get_all_polygons():
+            normsum += poly.plane.n
+            for vert in poly.vertices:
+                rad = (vert.pos-cent).magnitude()
+                self.assertAlmostEqual(srad, rad)
+
+        self.assertAlmostEqual(0.0, normsum.x)
+        self.assertAlmostEqual(0.0, normsum.y)
+        self.assertAlmostEqual(0.0, normsum.z)
+
+    
+    def test_two_ball_merge(self):
+        ball1 = pd.EllipsoidElement(0.0, 0.0, 0.0, 10.0, 10.0, 10.0) #this is a sphere
+        ball2 = pd.EllipsoidElement(0.0, 0.0, 0.0, 10.0, 10.0, 10.0).translate(8.0,0.0, 0.0)
+        body = pd.Body().addelement(ball1, quality=20)
+        body.addelement(ball2, quality=20)
+        m = pd.Mesh(body)
+        sth = pd.StlHelper(m, "two_balls_ascii.stl", pd.StlModeEnum.ASCII)
+        sth.write()
 
     # def test_ballmeshoutofcentre(self):
     #     ball = pd.EllipsoidElement(10.0, -90.0, 52.0, 10.0, 10.0, 10.0) #this is a sphere
@@ -102,42 +137,36 @@ class ElementTest(TestBase):
     #         chkval = pt.x**2/asq + pt.y**2/bsq + pt.z**2/csq
     #         self.assertAlmostEqual(1.0, chkval)
 
-    # def test_stl_ascii(self):
-    #     fname = "test_stl_ascii.stl"
+    def test_stl_ascii(self):
+        fname = "test_stl_ascii.stl"
 
-    #     box = pd.BoxElement(0, 0, 0, 100, 100, 100)
-    #     body = pd.Body()
-    #     body.append(box)
-    #     m = pd.Mesh()
-    #     m.name = "Boxtestmesh"
-    #     m.addbody(body)
-    #     sth = StlHelper(m, fname, StlModeEnum.ASCII)
-    #     sth.write()
+        box = pd.BoxElement(0, 0, 0, 100, 100, 100)
+        body = pd.Body().addelement(box)
+        m = pd.Mesh(body)
+        m.name = "Boxtestmesh"
+        sth = pd.StlHelper(m, fname, pd.StlModeEnum.ASCII)
+        sth.write()
 
-    # def test_stl_bin(self):
-    #     fname = "test_stl_bin.stl"
+    def test_stl_bin(self):
+        fname = "test_stl_bin.stl"
 
-    #     box = pd.BoxElement(0, 0, 0, 100, 100, 100)
-    #     body = pd.Body()
-    #     body.append(box)
-    #     m = pd.Mesh()
-    #     m.name = "Boxtestmesh"
-    #     m.addbody(body)
-    #     sth = StlHelper(m, fname, StlModeEnum.BINARY)
-    #     sth.write()
+        box = pd.BoxElement(0, 0, 0, 100, 100, 100)
+        body = pd.Body()
+        body.addelement(box)
+        m = pd.Mesh(body)
+        m.name = "Boxtestmesh"
+        sth = pd.StlHelper(m, fname, pd.StlModeEnum.BINARY)
+        sth.write()
 
-    # def test_stl_ascii2(self):
-    #     return
-    #     fname = "test_stl_ascii2.stl"
+    def test_stl_ascii2(self):
+        fname = "test_stl_ascii2.stl"
 
-    #     elli = pd.EllipsoidElement(0, 0, 0, 100, 70, 50).rotate(pd.AxisEnum.ZAXIS, 45)
-    #     body = pd.Body()
-    #     body.append(elli, quality=20)
-    #     m = pd.Mesh()
-    #     m.name = "Ellipsoidtestmesh"
-    #     m.addbody(body)
-    #     sth = StlHelper(m, fname, StlModeEnum.ASCII)
-    #     sth.write()
+        elli = pd.EllipsoidElement(0, 0, 0, 100, 70, 50).rotate(pd.AxisEnum.ZAXIS, 45)
+        body = pd.Body().addelement(elli, quality=20)
+        m = pd.Mesh(body)
+        m.name = "Ellipsoidtestmesh"
+        sth = pd.StlHelper(m, fname, pd.StlModeEnum.ASCII)
+        sth.write()
 
     # # def test_ellipsoidrotated(self):
     # #     m = pd.Mesh()

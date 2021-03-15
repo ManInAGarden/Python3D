@@ -1,5 +1,6 @@
 import numpy as np
 from numpy.lib.polynomial import poly
+from numpy.linalg.linalg import norm
 
 class Vector3(object):
 
@@ -61,6 +62,12 @@ class Vector3(object):
     def __getitem__(self, key: int) -> float:
         if key>-1 and key <3: return self.pos[key]
         else: raise Exception("Index <{}> is out of range".format(key))
+
+    def __setitem__(self, key : int, value):
+        if key>-1 and key <3: 
+            self.pos[key] = value
+        else: 
+            raise Exception("Index <{}> is out of range".format(key))
 
     def __len__(self):
         return 3
@@ -126,15 +133,20 @@ class Vector3(object):
         return Vector3((self.pos/np.linalg.norm(self.pos)))
 
 class Vertex(object):
-    def __init__(self, pos : Vector3, n : Vector3):
+    def __init__(self, pos : Vector3):
         self.pos = pos
-        self.n = n
 
     def clone(self):
-        return Vertex(self.pos.clone(), self.n.clone())
+        return Vertex(self.pos.clone())
 
     def __eq__(self, other):
-        return self.pos == other.pos and self.n == other.n
+        return self.pos == other.pos
+
+    def getbetween(self, other, t):
+        """get a position on the connection between self and other (both vertices)
+        weighed by t
+        """
+        return Vertex(self.pos + ((other.pos - self.pos) * t))
 
 
 
@@ -152,6 +164,10 @@ class Plane3(object):
 
     def clone(self):
         return Plane3(self.n.clone(), self.zdist)
+
+    def turnover(self):
+        self.n = -self.n
+        self.zdist = -self.zdist
 
     def splitPolygon(self, polygon, coplanarFront, coplanarBack, front, back):
         """
@@ -214,9 +230,9 @@ class Plane3(object):
                         b.append(vi)
                 if (ti | tj) == SPANNING:
                     # interpolation weight at the intersection point
-                    t = (self.zdist - self.n * vi.pos) / (self.n * vj.pos.minus(vi.pos))
+                    t = (self.zdist - self.n * vi.pos) / (self.n * (vj.pos - vi.pos))
                     # intersection point on the plane
-                    v = vi.interpolate(vj, t)
+                    v = vi.getbetween(vj, t)
                     f.append(v)
                     b.append(v.clone())
             if len(f) >= 3: 
@@ -232,7 +248,21 @@ class Polygon(object):
     def clone(self):
         return Polygon(list(map(lambda vert: vert.clone(), self.vertices)))
 
+    def turnover(self):
+        self.vertices.reverse()
+        self.plane.turnover()
 
+    def to_triangles(self):
+        """return a list of polygons describing only triangles
+        """
+        if len(self.vertices)==3:
+            return [self] #we always return a list even though it only return the polygon itself 
+
+        answ = [Polygon(self.vertices[0:3])]
+        for i in range(3, len(self.vertices)):
+            answ.append(Polygon([self.vertices[0], self.vertices[i-1], self.vertices[i]]))
+
+        return answ
 
 class BTNode(object):
     def __init__(self, polygons=None):
@@ -257,6 +287,59 @@ class BTNode(object):
 
         return answ
 
+    def cutout(self, other):
+        """ 
+        cut away from "self" everything that is inside "other"
+        """
+        self.polygons = other.cutout_polygons(self.polygons)
+        if self.front: 
+            self.front.cutout(other)
+        if self.back: 
+            self.back.cutout(other)
+
+    def cutout_polygons(self, polygons):
+        """ 
+        Recursively remove all polygons in `polygons` that are inside this tree
+        """
+        if not self.plane: 
+            return polygons[:]
+
+        front = []
+        back = []
+        for poly in polygons:
+            self.plane.splitPolygon(poly, front, back, front, back)
+
+        if self.front: 
+            front = self.front.cutout_polygons(front)
+
+        if self.back: 
+            back = self.back.cutout_polygons(back)
+        else:
+            back = []
+
+        front.extend(back)
+        return front
+
+    def invert(self):
+        """ 
+        turn over this node, so that everything inside is outside afterwards and
+        everything outside is inside
+        """
+        for poly in self.polygons:
+            poly.turnover()
+        self.plane.turnover()
+        if self.front: 
+            self.front.invert()
+        if self.back: 
+            self.back.invert()
+        temp = self.front
+        self.front = self.back
+        self.back = temp
+
+    def addtree(self, other):
+        otherpolys = other.get_deep_polygons()
+        self.buildfrompolygons(otherpolys)
+
 
     def buildfrompolygons(self, polygons):
         if len(polygons) == 0:
@@ -273,7 +356,7 @@ class BTNode(object):
             # coplanar front and back polygons go into self.polygons
             self.plane.splitPolygon(poly, self.polygons, self.polygons,
                                     front, back)
-        # recursively build the BSP tree
+        # recursively build the tree
         if len(front) > 0:
             if not self.front:
                 self.front = BTNode()
@@ -282,6 +365,17 @@ class BTNode(object):
             if not self.back:
                 self.back = BTNode()
             self.back.buildfrompolygons(back)
+
+    def get_deep_polygons(self):
+        """get all polygons from all nodes recursively
+        """
+        answ = self.polygons
+        if self.front is not None:
+            answ.extend(self.front.get_deep_polygons())
+        if self.back is not None:
+            answ.extend(self.back.get_deep_polygons())
+
+        return answ
     
 
 
