@@ -1,3 +1,6 @@
+from python3d.Bodies import Body
+from python3d.Polygons import Vector3
+from python3d.Meshes import Mesh
 from numpy.core.arrayprint import _leading_trailing
 from numpy.lib.polynomial import poly
 from TestBase import *
@@ -183,6 +186,52 @@ class ElementTest(TestBase):
     # #         pt = ptr - cent
     # #         chkval = pt.x**2/asq + pt.y**2/bsq + pt.z**2/csq
     # #         self.assertAlmostEqual(1.0, chkval)
+
+    def test_cylinder_simple(self):
+        cyl = pd.CylinderElement(lz=10, r=5)
+        body = Body().addelement(cyl, quality=20)
+        m = Mesh(body)
+        m.name = "Cylindertestmesh"
+        fname = m.name + ".stl"
+        sth = pd.StlHelper(m, fname, pd.StlModeEnum.ASCII)
+        sth.write()
+
+    def test_cylinder_pinched(self):
+        cyl = pd.CylinderElement(lz=10, r=10).rotate(pd.AxisEnum.YAXIS, 45)
+        body = Body().addelement(cyl, quality=50)
+        cyl2 = pd.CylinderElement(lz=20, r=4).rotate(pd.AxisEnum.YAXIS, 45)
+        body.addelement(cyl2, pd.BodyOperationEnum.DIFFERENCE, 50)
+        m = Mesh(body)
+        m.name = "Cylinderpinchedtestmesh"
+        fname = m.name + ".stl"
+        sth = pd.StlHelper(m, fname, pd.StlModeEnum.ASCII)
+        sth.write()
+
+    def test_findperpinormals(self):
+        m = Mesh()
+        axis = Vector3.Zdir()
+        n1, n2 = m._findperpendicularnormals(axis)
+        self.assertAlmostEqual(n1 * n2, 0.0)
+        self.assertAlmostEqual(axis * n2, 0.0)
+        self.assertAlmostEqual(axis * n1, 0.0)
+
+        axis = Vector3.Xdir()
+        n1, n2 = m._findperpendicularnormals(axis)
+        self.assertAlmostEqual(n1 * n2, 0.0)
+        self.assertAlmostEqual(axis * n2, 0.0)
+        self.assertAlmostEqual(axis * n1, 0.0)
+
+        axis = Vector3.Ydir()
+        n1, n2 = m._findperpendicularnormals(axis)
+        self.assertAlmostEqual(n1 * n2, 0.0)
+        self.assertAlmostEqual(axis * n2, 0.0)
+        self.assertAlmostEqual(axis * n1, 0.0)
+
+        axis = Vector3([0, 7, -12])
+        n1, n2 = m._findperpendicularnormals(axis)
+        self.assertAlmostEqual(n1 * n2, 0.0)
+        self.assertAlmostEqual(axis * n2, 0.0)
+        self.assertAlmostEqual(axis * n1, 0.0)
 
 
 if __name__ == "__main__":

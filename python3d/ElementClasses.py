@@ -167,15 +167,69 @@ class BoxElement(DimensionedElement):
         super().__init__(centx, centy, centz, xlength, ylength, zlength)
 
     def __str__(self):
-        return "box main point{}, dimensions{}".format(self._cent, self._dimensions)
+        return "box centra point {}, dimensions {}".format(self._cent, self._dimensions)
 
 class EllipsoidElement(DimensionedElement):
     def __init__(self, centx=0.0, centy=0.0, centz=0.0, radx=1.0, rady=1.0, radz=1.0):
         super().__init__(centx, centy, centz, radx, rady, radz)
-
     
     def __str__(self):
-        return "ball centre{}, dimensions{}".format(self._cent, self._dimensions)
+        return "ball centre {}, dimensions {}".format(self._cent, self._dimensions)
+
+class CylinderElement(BasicElement):
+    def __init__(self, cx=0.0, cy=0.0, cz=0.0, lx=0.0, ly=0.0, lz=1.0, r=1.0):
+        super().__init__(cx, cy, cz)
+        self._l = Vector3([lx, ly, lz])
+        self._r = r
+
+    def __str__(self):
+        return "cylinder centre {}, lenvector {}, radius {}".format(self._cent, self._l, self._r)
+
+    def clone(self):
+        return CylinderElement(self._cent.x, self._cent.y, self._cent.z, self._l.x, self._l.y, self._l.z, self._r)
+        
+    def scale(self, sx: float = 1.0, sy: float = 1.0, sz: float = 1.0):
+        answ = self.clone()
+
+        if sx==1.0 and sy==1.0 and sz == 1.0: return answ
+
+        tr = Transformer().scaleinit(sx, sy, sz)
+        answ._cent = tr.transform(self._cent)
+        answ._l = tr.transform(self._l)
+        rv = Vector3([1,1,(answ._l.x + answ._l.y)/answ._l.z]).unit()*self._r
+        rv = tr.transform(rv)
+        answ._r = rv.magnitude()
+
+        return answ
+
+    def translate(self, tx: float = 0.0, ty: float = 0.0, tz: float = 0.0):
+        answ = self.clone()
+
+        if tx==0.0 and ty==0.0 and tz == 0.0: return answ
+
+        tr = Transformer().translateinit(tx, ty, tz)
+        answ._cent = tr.transform(self._cent)
+        return answ
+
+    def rotate(self, axis : AxisEnum, deg : float = 0.0):
+        answ = self.clone()
+
+        if deg == 0.0: return answ
+
+        if axis is AxisEnum.XAXIS:
+            trans = Transformer().xrotinit(deg)
+        elif axis is AxisEnum.YAXIS:
+            trans = Transformer().yrotinit(deg)
+        elif axis is AxisEnum.ZAXIS:
+            trans = Transformer().zrotinit(deg)
+        else:
+            raise Exception("Unknown axis <{}>".format(axis))
+
+        answ._cent = trans.transform(self._cent)
+        answ._l = trans.transform(self._l)
+
+        return answ
+
 
 if __name__ == "__main__":
     b = EllipsoidElement(10, 0, 0, 10, 10, 10)

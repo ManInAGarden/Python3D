@@ -49,6 +49,8 @@ class Mesh(object):
             return self._create_boxmesh(ele)
         elif tele is EllipsoidElement:
             return self._create_ellipsoidmesh(ele, quality)
+        elif tele is CylinderElement:
+            return self._create_cylindermesh(ele, quality)
         else:
             raise Exception("Unknonw element type <{}> in _create_mesh".format(tele.__name__))
 
@@ -104,6 +106,78 @@ class Mesh(object):
         answ.btsource = BTNode(polygons)
 
         return answ
+
+    def _create_cylindermesh(self, cyl : CylinderElement, quality):
+        """create a mesh for a cylinder element
+        """
+        rx, ry = self._findperpendicularnormals(cyl._l)
+        rx = rx * cyl._r
+        ry = ry * cyl._r
+        #top
+        polygons = self._create_circle_mesh(cyl._cent + (cyl._l * 0.5), rx, ry, quality)
+
+        #rounded shell
+        lmag = cyl._l.magnitude()
+        lstp = lmag / quality
+        formerpts = None
+        for cf in np.arange(-0.5, 0.5 + 1/quality, 1/quality):
+            cv = (cyl._l - cyl._cent) * cf
+            cstp = 2 * ma.pi/quality
+            currentpts = []
+            for phi in np.arange(0.0, 2* ma.pi + cstp, cstp):
+                currentpts.append(cv + rx*ma.cos(phi) + ry*ma.sin(phi))
+
+            if not formerpts is None:
+                for i in range(len(currentpts)-1):
+                    leftcurrent = Vertex(currentpts[i])
+                    rightcurrent = Vertex(currentpts[i+1])
+                    leftformer = Vertex(formerpts[i])
+                    rightformer = Vertex(formerpts[i+1])
+                    polygons.append(Polygon([leftformer, rightcurrent, leftcurrent]))
+                    polygons.append(Polygon([leftformer, rightformer, rightcurrent]))
+
+            formerpts = currentpts
+
+        #bottom
+        botpolys = self._create_circle_mesh(cyl._cent - (cyl._l * 0.5), rx, ry, quality)
+        for botpoly in botpolys:
+            botpoly.turnover()
+        polygons.extend(botpolys)
+
+        answ = Mesh()
+        answ.btsource = BTNode(polygons)
+
+        return answ
+        
+    def _findperpendicularnormals(self, dirv : Vector3):
+        """find two vector which are both perpendicular to the vector dirv and perpendicular to each other
+        """
+        ndir = dirv.unit()
+        basedir = Vector3.Xdir()
+        xtst = ndir * basedir
+        if xtst > 0.1:
+            basedir = Vector3.Ydir()
+            
+        v1 = basedir.cross(ndir)
+        v2 = ndir.cross(v1)
+
+        return v1.unit(), v2.unit()
+
+    def _create_circle_mesh(self, centre : Vector3, rx : Vector3, ry : Vector3, quality : int):
+        """create a submesh for  a circle in R3
+        """
+        polygons = []
+        stp = 2 * ma.pi/quality
+        oldpt = None
+        cvert = Vertex(centre)
+        for phi in np.arange(0.0, 2* ma.pi + stp, stp):
+            pt = centre + rx*ma.cos(phi) + ry*ma.sin(phi) 
+            if not oldpt is None:
+                poly = Polygon([Vertex(oldpt), Vertex(pt), cvert])
+                polygons.append(poly)
+            oldpt = pt
+
+        return polygons
 
     def _create_boxmesh(self, box : BoxElement):
         polygons = []

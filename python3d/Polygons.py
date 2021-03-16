@@ -251,6 +251,7 @@ class Polygon(object):
     def turnover(self):
         self.vertices.reverse()
         self.plane.turnover()
+        return self
 
     def to_triangles(self):
         """return a list of polygons describing only triangles
