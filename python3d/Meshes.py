@@ -4,6 +4,8 @@ import sys
 import struct
 from .Polygons import *
 
+import mapbox_earcut as mbe
+
 from enum import Enum
 
 
@@ -51,8 +53,85 @@ class Mesh(object):
             return self._create_ellipsoidmesh(ele, quality)
         elif tele is CylinderElement:
             return self._create_cylindermesh(ele, quality)
+        elif tele is SketchedElement:
+            return self._create_sketchmesh(ele, quality)
         else:
             raise Exception("Unknonw element type <{}> in _create_mesh".format(tele.__name__))
+
+    def _create_sketchmesh(self, skel : SketchedElement, quality):
+        polygons = []
+        scalex = skel._dimensions[0]
+        scaley = skel._dimensions[1]
+        scalez = skel._dimensions[2]
+        tpt = skel._cent
+
+        flatpoly2s = self._create_flatsketch_mesh(skel._polygons) #for top and bottom in 2D unscaled
+
+        for poly2 in flatpoly2s:
+            polygons.append(self._gettransferred3poly(skel._transf, poly2)) #botton polys
+
+        for poly2 in flatpoly2s:
+            polygons.append(self._gettransferred3poly(skel._transf, poly2, scalez)) #top polys
+
+        for poly in skel._polygons:
+            oldpt = None
+            for vert in poly.vertices:
+                pt = vert.pos
+                if not oldpt is None:
+                    x = (Vector3.Xdir() * oldpt.x) * scalex
+                    y = (Vector3.Ydir() * oldpt.y) * scaley
+                    z = Vector3.Zdir() * scalez
+                    vold = Vertex3(tpt + Vector3.newFromXYZ(x, y, z))
+                    z = (Vector3.Zdir() * skel._extr) * scalez
+                    voldext = Vertex3(tpt + Vector3.newFromXYZ(x, y, z))
+
+                    x = (Vector3.Xdir() * pt.x) * scalex
+                    y = (Vector3.Ydir() * pt.y) * scaley
+                    z = Vector3.Zdir() * scalez
+                    vcurr = Vertex3(tpt + Vector3.newFromXYZ(x, y, z))
+                    z = (Vector3.Zdir() * skel._extr) * scalez
+                    vcurrext = Vertex3(tpt + Vector3.newFromXYZ(x, y, z))
+
+                    polygons.append(Polygon3([vold, vcurr, vcurrext]))
+                    polygons.append(Polygon3([vold, vcurrext, voldext]))
+                else:
+                    pass
+
+                oldpt = pt
+
+        answ = Mesh()
+        answ.btsource = BTNode(polygons)
+
+        return answ
+
+    def _gettransferred3poly(self, t, p2, addvect=Vector3.Zero()):
+        vertices3 = []
+        for vert2 in p2.vertices:
+            v3 = Vector3.newFromXYZ(vert2.pos.x, vert2.pos.y, 0.0)
+            v3t = t.transform(v3)
+            vertices3.append(Vertex3.newFromXYZ(v3t.x, v3t.y, v3t.z))
+
+        return Polygon3(vertices3)
+
+
+    def _create_flatsketch_mesh(self, polygons):
+        vertices = []
+        rings = []
+        pc = 0
+        for poly in polygons:
+            for vertex in poly.vertices:
+                vertices.append([vertex.pos.x, vertex.pos.y])
+
+            pc += len(poly.vertices)
+            rings.append(pc)
+
+        vnp = np.array(vertices).reshape(-1, 2)
+        ress = mbe.triangulate_float64(vnp, rings)
+        answ = []
+        for i in range(0,len(ress),3):
+            answ.append(Polygon2.newFromList([vnp[ress[i]], vnp[ress[i+1]], vnp[ress[i+2]]]))
+
+        return answ
 
     def _create_ellipsoidmesh(self, ball : EllipsoidElement, quality):
         polygons = []
@@ -92,15 +171,15 @@ class Mesh(object):
                 rightcurrent = currentcirc[i+1]
 
                 if leftformer != rightformer:
-                    polygons.append(Polygon([Vertex(leftcurrent), Vertex(leftformer), Vertex(rightformer)]))
+                    polygons.append(Polygon3([Vertex3(leftcurrent), Vertex3(leftformer), Vertex3(rightformer)]))
                 if rightcurrent != leftcurrent:
-                    polygons.append(Polygon([Vertex(rightcurrent), Vertex(leftcurrent),  Vertex(rightformer)]))
+                    polygons.append(Polygon3([Vertex3(rightcurrent), Vertex3(leftcurrent),  Vertex3(rightformer)]))
 
         for i in range(len(formercirc)-1):
             rightcurrent = leftcurrent = toppt
             leftformer = currentcirc[i]
             rightformer = currentcirc[i+1]
-            polygons.append(Polygon([Vertex(leftcurrent), Vertex(leftformer), Vertex(rightformer)]))
+            polygons.append(Polygon3([Vertex3(leftcurrent), Vertex3(leftformer), Vertex3(rightformer)]))
 
         answ = Mesh()
         answ.btsource = BTNode(polygons)
@@ -129,12 +208,12 @@ class Mesh(object):
 
             if not formerpts is None:
                 for i in range(len(currentpts)-1):
-                    leftcurrent = Vertex(currentpts[i])
-                    rightcurrent = Vertex(currentpts[i+1])
-                    leftformer = Vertex(formerpts[i])
-                    rightformer = Vertex(formerpts[i+1])
-                    polygons.append(Polygon([leftformer, rightcurrent, leftcurrent]))
-                    polygons.append(Polygon([leftformer, rightformer, rightcurrent]))
+                    leftcurrent = Vertex3(currentpts[i])
+                    rightcurrent = Vertex3(currentpts[i+1])
+                    leftformer = Vertex3(formerpts[i])
+                    rightformer = Vertex3(formerpts[i+1])
+                    polygons.append(Polygon3([leftformer, rightcurrent, leftcurrent]))
+                    polygons.append(Polygon3([leftformer, rightformer, rightcurrent]))
 
             formerpts = currentpts
 
@@ -169,11 +248,11 @@ class Mesh(object):
         polygons = []
         stp = 2 * ma.pi/quality
         oldpt = None
-        cvert = Vertex(centre)
+        cvert = Vertex3(centre)
         for phi in np.arange(0.0, 2* ma.pi + stp, stp):
             pt = centre + rx*ma.cos(phi) + ry*ma.sin(phi) 
             if not oldpt is None:
-                poly = Polygon([Vertex(oldpt), Vertex(pt), cvert])
+                poly = Polygon3([Vertex3(oldpt), Vertex3(pt), cvert])
                 polygons.append(poly)
             oldpt = pt
 
@@ -219,8 +298,8 @@ class Mesh(object):
 
     def _get_polygon(self, *pts):
         assert len(pts)>2, "get_polygon needs at least three points to produce a valid polygon"
-        vertices = list(map(Vertex, pts))
-        return Polygon(vertices)
+        vertices = list(map(Vertex3, pts))
+        return Polygon3(vertices)
 
     def _mergemesh(self, mmesh, operation : BodyOperationEnum):
         if self.btsource is None:
@@ -294,7 +373,7 @@ class StlHelper(object):
         
 
     def _get_offset(self):
-        smallest = Vector3([sys.float_info.max]*3)
+        smallest = Vector3.newFromList([sys.float_info.max]*3)
         for poly in self.polygons:
             for vert in poly.vertices:
                 for i in range(3):

@@ -76,7 +76,7 @@ class ElementTest(TestBase):
         body = pd.Body().addelement(elli, quality=20)
         m = pd.Mesh(body)
         cent = elli._cent
-        normsum = pd.Vector3([0.0, 0.0, 0.0])
+        normsum = pd.Vector3.Zero()
         srad = 10.0
         for poly in m.get_all_polygons():
             normsum += poly.plane.n
@@ -227,12 +227,42 @@ class ElementTest(TestBase):
         self.assertAlmostEqual(axis * n2, 0.0)
         self.assertAlmostEqual(axis * n1, 0.0)
 
-        axis = Vector3([0, 7, -12])
+        axis = Vector3.newFromXYZ(0, 7, -12)
         n1, n2 = m._findperpendicularnormals(axis)
         self.assertAlmostEqual(n1 * n2, 0.0)
         self.assertAlmostEqual(axis * n2, 0.0)
         self.assertAlmostEqual(axis * n1, 0.0)
 
+    def test_sketched_element(self):
+        extsketch = self._get_box_sketch([-10,-10],[10,-10],[10,10],[-10,10], 3.0)
+        body = Body().addelement(extsketch)
+        m = Mesh(body)
+        m.name = "Sketchtestmesh"
+        fname = m.name + ".stl"
+        sth = pd.StlHelper(m, fname, pd.StlModeEnum.ASCII)
+        sth.write()
+
+    def _get_box_sketch(self, c1, c2, c3, c4, arcr):
+        corner1 = pd.Vector2.newFromList(c1)
+        corner2 = pd.Vector2.newFromList(c2)
+        corner3 = pd.Vector2.newFromList(c3)
+        corner4 = pd.Vector2.newFromList(c4)
+        arcrv = pd.Vector2.newFromXY(arcr, arcr)
+        arc1 = pd.EllipticArc2(corner1, arcrv, 180, 270, 20)
+        l12 = pd.Line2(corner1 + pd.Vector2.newFromXY(0,-arcr),
+            corner2 + pd.Vector2.newFromXY(0, -arcr))
+        arc2 = pd.EllipticArc2(corner2, arcrv, 270, 360, 20)
+        l23 = pd.Line2(corner2 + pd.Vector2.newFromXY(arcr,0),
+            corner3 + pd.Vector2.newFromXY(arcr, 0))
+        arc3 = pd.EllipticArc2(corner3, arcrv, 0, 90, 20)
+        l34 = pd.Line2(corner3 + pd.Vector2.newFromXY(0,arcr),
+            corner4 + pd.Vector2.newFromXY(0,arcr))
+        arc4 = pd.EllipticArc2(corner4, arcrv, 90, 180, 20)
+        l41 = pd.Line2(corner4 + pd.Vector2.newFromXY(-arcr,0),
+            corner1 + pd.Vector2.newFromXY(-arcr,0))
+        skel = pd.SketchedElement(extr=10)
+        skel.add_poly(Polygon2.newFromSketch(arc1, l12, arc2, l23, arc3, l34, arc4, l41))
+        return skel
 
 if __name__ == "__main__":
     unittest.main()

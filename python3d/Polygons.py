@@ -1,11 +1,15 @@
 import numpy as np
 from numpy.lib.polynomial import poly
 from numpy.linalg.linalg import norm
+import math as ma
 
 class Vector3(object):
 
     def __init__(self, dta : np.array):
         self.pos = dta
+        t = type(dta)
+        assert t is np.ndarray, "Unsupported type <{}> in init of Vector3".format(t.__name__)
+        assert self.pos.size == 3, "Unsupported array lenght in init of Vector3"
 
     @classmethod
     def newFromXYZ(cls, x : float, y : float, z:float):
@@ -13,23 +17,23 @@ class Vector3(object):
 
     @classmethod
     def newFromList(cls, lst):
-        return Vector3(np.array(lst))
+        return Vector3(np.array(lst[0:3]))
 
     @classmethod
     def Xdir(cls):
-        return Vector3([1,0,0])
+        return Vector3(np.array([1,0,0]))
 
     @classmethod
     def Ydir(cls):
-        return Vector3([0,1,0])
+        return Vector3(np.array([0,1,0]))
 
     @classmethod
     def Zdir(cls):
-        return Vector3([0,0,1])
+        return Vector3(np.array([0,0,1]))
 
     @classmethod
     def Zero(cls):
-        return Vector3([0,0,0])
+        return Vector3(np.array([0,0,0]))
 
     @property
     def x(self):
@@ -132,21 +136,36 @@ class Vector3(object):
     def unit(self):
         return Vector3((self.pos/np.linalg.norm(self.pos)))
 
-class Vertex(object):
+class Vertex3(object):
+    """ a class for vertexes of polygons. Quite the same as Vector3 bzt with
+    space for some additional methodes only applicable to vertices of polygons
+    """
     def __init__(self, pos : Vector3):
+        assert type(pos) is Vector3
         self.pos = pos
 
+    @classmethod
+    def newFromXYZ(cls, x, y, z):
+        return Vertex3(Vector3.newFromXYZ(x,y,z))
+
+    @classmethod
+    def newFromList(cls, lst):
+        return Vertex3(Vector3.newFromList(lst))
+
     def clone(self):
-        return Vertex(self.pos.clone())
+        return Vertex3(self.pos.clone())
 
     def __eq__(self, other):
         return self.pos == other.pos
+
+    def __str__(self):
+        return "Vertex3 {}".format(str(self.pos))
 
     def getbetween(self, other, t):
         """get a position on the connection between self and other (both vertices)
         weighed by t
         """
-        return Vertex(self.pos + ((other.pos - self.pos) * t))
+        return Vertex3(self.pos + ((other.pos - self.pos) * t))
 
 
 
@@ -236,17 +255,19 @@ class Plane3(object):
                     f.append(v)
                     b.append(v.clone())
             if len(f) >= 3: 
-                front.append(Polygon(f))
+                front.append(Polygon3(f))
             if len(b) >= 3: 
-                back.append(Polygon(b))
+                back.append(Polygon3(b))
 
-class Polygon(object):
+class Polygon3(object):
+    """class for polygons 3d-space (R3)
+    """
     def __init__(self, vertices):
         self.vertices = vertices
         self.plane = Plane3.newFromPoints(vertices[0].pos, vertices[1].pos, vertices[2].pos)
 
     def clone(self):
-        return Polygon(list(map(lambda vert: vert.clone(), self.vertices)))
+        return Polygon3(list(map(lambda vert: vert.clone(), self.vertices)))
 
     def turnover(self):
         self.vertices.reverse()
@@ -259,11 +280,246 @@ class Polygon(object):
         if len(self.vertices)==3:
             return [self] #we always return a list even though it only return the polygon itself 
 
-        answ = [Polygon(self.vertices[0:3])]
+        answ = [Polygon3(self.vertices[0:3])]
         for i in range(3, len(self.vertices)):
-            answ.append(Polygon([self.vertices[0], self.vertices[i-1], self.vertices[i]]))
+            answ.append(Polygon3([self.vertices[0], self.vertices[i-1], self.vertices[i]]))
 
         return answ
+
+
+class Vector2(object):
+    def __init__(self, coord : np.array):
+        t = type(coord)
+        assert t is np.ndarray, "Unsupported type <{}> in init of Vector2".format(t.__name__)
+        assert coord.size == 2
+        self.pos = coord
+
+    @classmethod
+    def newFromXY(cls, x : float, y : float):
+        return Vector2(np.array([x,y]))
+
+    @classmethod
+    def newFromList(cls, lst):
+        return Vector2(np.array(lst))
+
+    @classmethod
+    def Xdir(cls):
+        return Vector2(np.array([1,0]))
+
+    @classmethod
+    def Ydir(cls):
+        return Vector2(np.array([0,1]))
+
+    @classmethod
+    def Zero(cls):
+        return Vector2(np.array([0,0]))
+
+    @property
+    def x(self):
+        return self.pos[0]
+    @property
+    def y(self):
+        return self.pos[1]
+
+    @x.setter
+    def x(self, val):
+        self.pos[0] = val
+    @y.setter
+    def y(self, val):
+        self.pos[1] = val
+    
+    def __str__(self):
+        return "Vector2: x:{}, y:{}".format(self.x, self.y)
+
+    def __repr__(self):
+        return "Vector2: x:{}, y:{}".format(self.x, self.y)
+
+    def __getitem__(self, key: int) -> float:
+        if key>-1 and key <2: return self.pos[key]
+        else: raise Exception("Index <{}> is out of range".format(key))
+
+    def __setitem__(self, key : int, value):
+        if key>-1 and key <2: 
+            self.pos[key] = value
+        else: 
+            raise Exception("Index <{}> is out of range".format(key))
+
+    def __len__(self):
+        return 2
+
+    def __iter__(self):
+        return iter(self.pos)
+
+    def __eq__(self, other):
+        tother = type(other)
+        if tother is Vector2:
+            return self.pos[0] == other.pos[0] and self.pos[1] == other.pos[1]
+        elif tother is list and len(other)==2:
+            return self.pos[0] == other[0] and self.pos[1] == other[1]
+        else:
+            return False
+
+    def __add__(self, other):
+        assert type(other) is Vector2, "Addition of Vector2 and {} is not declared".format(type(other).__name__)
+        
+        return Vector2(np.add(self.pos, other.pos))
+
+    def __sub__(self, other):
+        assert type(other) is Vector2, "Subtraction of Vector2 and {} is not declared".format(type(other).__name__)
+
+        return Vector2(np.subtract(self.pos, other.pos))
+
+    def __neg__(self):
+        return Vector2(np.negative(self.pos))
+
+    def __mul__(self, other):
+        """scalar product of two vectors or of a vecotr with a number
+        """
+        tother = type(other)
+        if tother is Vector2:
+            return np.dot(self.pos, other.pos)
+        elif tother is float or tother is int or tother is np.float64:
+            return Vector2(np.dot(self.pos, other))
+        else:
+            raise Exception("Multiplikation not declared for types Vector2 and {}".format(tother.__name__))
+
+    def __truediv__(self, other):
+        return Vector2(np.divide(self.pos, other))
+
+    def cross(self, other):
+        """vector product self x other - in R2 this returns a float!
+        """
+        return np.cross(self.pos, other.pos)
+
+    def nparray(self, *addons):
+        """get a new np.array from this vector and add the numbers in addon as
+        additional dimensions to the vector
+        """
+        answ = np.array(list(self.pos) + list(addons))
+        return answ
+
+    def clone(self):
+        return Vector2(np.copy(self.pos))
+
+    def magnitude(self):
+        return np.linalg.norm(self.pos)
+
+    def unit(self):
+        return Vector2((self.pos/np.linalg.norm(self.pos)))
+
+
+class Vertex2(object):
+    """ a class for vertexes of polygons in R2. Quite the same as Vector2 but with
+    room for some additional methods only applicable to vertices of polygons in R2
+    """
+    def __init__(self, pos : Vector2):
+        self.pos = pos
+
+    @classmethod
+    def newFromXY(cls, x : float, y : float):
+        return Vertex2(Vector2(np.array([x,y])))
+
+    @classmethod
+    def newFromList(cls, lst : list):
+        return Vertex2(Vector2(np.array(lst)))
+
+    def clone(self):
+        return Vertex2(self.pos.clone())
+
+    def __eq__(self, other):
+        return self.pos == other.pos
+
+    def __str__(self):
+        return "Vertex2 {}".format(str(self.pos))
+
+    def getbetween(self, other, t):
+        return Vertex2(self.pos + (other.pos - self.pos)*t)
+
+    def isrightoff(self, other):
+        """return true when other is to the right self
+        """
+        return self.pos.cross(other.pos) > 0
+        
+
+class SketchPart2(object):
+    def __init__(self):
+        self.points = []
+
+    def getvertices(self):
+        vertices = []
+        for pt in self.points:
+            vertices.append(Vertex2(pt))
+
+        return vertices
+
+class Line2(SketchPart2):
+    def __init__(self, *pts):
+        super().__init__()
+        for pt in pts:
+            self.points.append(pt)
+
+class EllipticArc2(SketchPart2):
+    def __init__(self, centrept : Vector2, rv : Vector2, phi1 : float, phi2 : float, quality : int =100):
+        super().__init__()
+        phis = phi1/180*ma.pi
+        phie = phi2/180*ma.pi
+        stp = 2*ma.pi/quality
+        self.points = []
+        c = centrept
+        rx = rv.x
+        ry = rv.y
+        for phi in np.arange(phis, phie + stp, stp):
+            self.points.append(c + Vector2.newFromXY(rx*ma.cos(phi), ry*ma.sin(phi)))
+
+class Ellipse2(EllipticArc2):
+    def __init__(self, centrept : Vector2, rv : Vector2, quality : int =100):
+        super().__init__(centrept, rv, 0.0, 360.0, quality)
+
+
+class Polygon2(object):
+    """class for polygons on surfaces (R2)
+    """
+    def __init__(self, vertices):
+        self.vertices = vertices # vertices are expected as Vertex2
+
+    @classmethod
+    def newFromSketch(self, *parts):
+        """get a polygon by constructing ist points from sketch parts like lines, circles, ...
+        """
+        vertices = []
+        for part in parts:
+            vertices.extend(part.getvertices())
+
+        return Polygon2(vertices)
+
+    @classmethod
+    def newFromList(self, l):
+        """Create a polygon from a list of values, each representing a list of two values (coordinates)
+            use like : polys = Polygon2.newFromList([[0,0],[0,10],[12,9]])
+            to create a polygon with three vertices
+        """
+        vertices = []
+        for pt in l:
+            vertices.append(Vertex2.newFromXY(pt[0], pt[1]))
+
+        return Polygon2(vertices)
+
+
+    def clone(self):
+        return Polygon2(list(map(lambda vert: vert.clone(), self.vertices)))
+
+    def isrighttwisted(self):
+        for i in range(0, len(self.vertices) - 1):
+            if not self.vertices[i+1].isrightoff(self.vertices[i]):
+                return False
+        
+        return True
+
+    def turnover(self):
+        self.vertices.reverse()
+        return self
+
+
 
 class BTNode(object):
     def __init__(self, polygons=None):

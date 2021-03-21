@@ -8,8 +8,21 @@ from .Polygons import *
 
 
 class Transformer():
+    @property
+    def transmat(self):
+        """property to get the transformation matrix of this transformer
+        """
+        return self._tmat
+
     def __init__(self, tmat : np.array=None):
         self._tmat = tmat
+
+    def clone(self):
+        answ = Transformer()
+        if not self._tmat is None:
+            answ._tmat = self._tmat.copy()
+        
+        return answ
 
     def addtrans(self, tmat : np.array):
         if self._tmat is None:
@@ -82,6 +95,7 @@ class Transformer():
         self.addtrans(tmat)
         return self
 
+
 class AxisEnum(Enum):
     XAXIS = 1
     YAXIS = 2
@@ -107,7 +121,7 @@ class BasicElement:
 class DimensionedElement(BasicElement):
     def __init__(self, centx=0.0, centy=0.0, centz=0.0, xdim=1.0, ydim=1.0, zdim=1.0):
         super().__init__(centx, centy, centz)
-        self._dimensions = [Vector3([0.0, 0.0, 0.0]) for i in range(3)]
+        self._dimensions = [Vector3.Zero() for i in range(3)]
         self._dimensions[0].x = xdim
         self._dimensions[1].y = ydim
         self._dimensions[2].z = zdim
@@ -179,7 +193,7 @@ class EllipsoidElement(DimensionedElement):
 class CylinderElement(BasicElement):
     def __init__(self, cx=0.0, cy=0.0, cz=0.0, lx=0.0, ly=0.0, lz=1.0, r=1.0):
         super().__init__(cx, cy, cz)
-        self._l = Vector3([lx, ly, lz])
+        self._l = Vector3.newFromXYZ(lx, ly, lz)
         self._r = r
 
     def __str__(self):
@@ -196,7 +210,7 @@ class CylinderElement(BasicElement):
         tr = Transformer().scaleinit(sx, sy, sz)
         answ._cent = tr.transform(self._cent)
         answ._l = tr.transform(self._l)
-        rv = Vector3([1,1,(answ._l.x + answ._l.y)/answ._l.z]).unit()*self._r
+        rv = Vector3.newFromXYZ(1, 1, (answ._l.x + answ._l.y)/answ._l.z).unit()*self._r
         rv = tr.transform(rv)
         answ._r = rv.magnitude()
 
@@ -228,6 +242,67 @@ class CylinderElement(BasicElement):
         answ._cent = trans.transform(self._cent)
         answ._l = trans.transform(self._l)
 
+        return answ
+
+class SketchedElement(DimensionedElement):
+    def __init__(self, centx=0.0, centy=0.0, centz=0.0, radx=1.0, rady=1.0, radz=1.0, extr : float = 1.0):
+        super().__init__(centx, centy, centz, radx, rady, radz)
+        self._extr = extr
+        self._polygons = []
+        self._transf = Transformer().scaleinit(1,1,1)
+
+    def clone(self):
+        answ = super().clone()
+        answ._extr = self._extr
+        answ._polygons = list(map(lambda poly: poly.clone(), self._polygons))
+        answ._transf = self._transf.clone()
+        return answ
+
+    def add_poly(self, poly : Polygon2):
+        l = len(poly.vertices)
+        assert l>2, "degenrate polygon2 encountered in add_poly"
+        assert poly.vertices[0] == poly.vertices[l-1], "Polygon has to be closed"
+        self._polygons.append(poly)
+
+    def scale(self, sx: float = 1.0, sy: float = 1.0, sz: float = 1.0):
+        answ = self.clone()
+
+        tr = Transformer().scaleinit(sx, sy, sz)
+        answ._cent = tr.transform(self._cent)
+        answ._dimensions = list(map(tr.transform, self._dimensions))
+
+        extrvec = tr.transform(self._dimensions[2].unit() * self._extr) #we use dim_z as a plane-direction
+        answ._extr = extrvec.magnitude()
+        self._transf.addtrans(tr.transmat)
+        return answ
+
+    def translate(self, tx: float = 0.0, ty: float = 0.0, tz: float = 0.0):
+        answ = self.clone()
+
+        if tx==0.0 and ty==0.0 and tz == 0.0: return answ
+
+        tr = Transformer().translateinit(tx, ty, tz)
+        answ._cent = tr.transform(self._cent)
+        self._transf.addtrans(tr.transmat)
+        return answ
+
+    def rotate(self, axis : AxisEnum, deg : float = 0.0):
+        answ = self.clone()
+
+        if deg == 0.0: return answ
+
+        if axis is AxisEnum.XAXIS:
+            trans = Transformer().xrotinit(deg)
+        elif axis is AxisEnum.YAXIS:
+            trans = Transformer().yrotinit(deg)
+        elif axis is AxisEnum.ZAXIS:
+            trans = Transformer().zrotinit(deg)
+        else:
+            raise Exception("Unknown axis <{}>".format(axis))
+
+        answ._cent = trans.transform(self._cent)
+        answ._dimensions = list(map(trans.transform, self._dimensions))
+        self._transf.addtrans(trans.transmat)
         return answ
 
 
