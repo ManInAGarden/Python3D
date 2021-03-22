@@ -60,55 +60,66 @@ class Mesh(object):
 
     def _create_sketchmesh(self, skel : SketchedElement, quality):
         polygons = []
-        scalex = skel._dimensions[0]
-        scaley = skel._dimensions[1]
-        scalez = skel._dimensions[2]
-        tpt = skel._cent
+        tr = skel._transf
+        botcpt = skel._cent + Vector3.Zdir() * skel._extrdown #botton centre point of the 2d sektch
+        topcpt = skel._cent + Vector3.Zdir() * skel._extrup #top centre point of 2d sketch
+        #note: extrdown or extrup may also be negative to extrude below or up to a point below the sketch!
 
         flatpoly2s = self._create_flatsketch_mesh(skel._polygons) #for top and bottom in 2D unscaled
 
+        toppolys = []
         for poly2 in flatpoly2s:
-            polygons.append(self._gettransferred3poly(skel._transf, poly2)) #botton polys
+            toppolys.append(self._gettransferred3poly(tr, poly2, topcpt)) #top polys
 
+        botpolys = []
         for poly2 in flatpoly2s:
-            polygons.append(self._gettransferred3poly(skel._transf, poly2, scalez)) #top polys
+            botpolys.append(self._gettransferred3poly(tr, poly2, botcpt).turnover()) #bottom polys
 
+        polygons.extend(toppolys)
+        polygons.extend(botpolys)
+
+        innerpoly = False
         for poly in skel._polygons:
-            oldpt = None
+            voldbot = None
+            voldtop = None
             for vert in poly.vertices:
                 pt = vert.pos
-                if not oldpt is None:
-                    x = (Vector3.Xdir() * oldpt.x) * scalex
-                    y = (Vector3.Ydir() * oldpt.y) * scaley
-                    z = Vector3.Zdir() * scalez
-                    vold = Vertex3(tpt + Vector3.newFromXYZ(x, y, z))
-                    z = (Vector3.Zdir() * skel._extr) * scalez
-                    voldext = Vertex3(tpt + Vector3.newFromXYZ(x, y, z))
+                currbotpt = tr.transform(Vector3.newFromXYZ(pt.x, pt.y, 0) + botcpt)
+                vcurrbot = Vertex3(currbotpt)
+                currtoppt = tr.transform(Vector3.newFromXYZ(pt.x, pt.y, 0) + topcpt)
+                vcurrtop = Vertex3(currtoppt)
+                
+                if not voldbot is None:
+                    if voldtop == vcurrtop or voldbot == vcurrbot: #eliminate connection points in polygons
+                        continue
+                    
+                    if innerpoly:
+                        polygons.append(Polygon3([vcurrtop, vcurrbot, voldbot]))
+                        polygons.append(Polygon3([ voldtop, vcurrtop, voldbot]))
+                    else:
+                        polygons.append(Polygon3([voldbot, vcurrbot, vcurrtop]))
+                        polygons.append(Polygon3([voldbot, vcurrtop, voldtop]))
 
-                    x = (Vector3.Xdir() * pt.x) * scalex
-                    y = (Vector3.Ydir() * pt.y) * scaley
-                    z = Vector3.Zdir() * scalez
-                    vcurr = Vertex3(tpt + Vector3.newFromXYZ(x, y, z))
-                    z = (Vector3.Zdir() * skel._extr) * scalez
-                    vcurrext = Vertex3(tpt + Vector3.newFromXYZ(x, y, z))
+                voldbot = vcurrbot
+                voldtop = vcurrtop
 
-                    polygons.append(Polygon3([vold, vcurr, vcurrext]))
-                    polygons.append(Polygon3([vold, vcurrext, voldext]))
-                else:
-                    pass
-
-                oldpt = pt
+            innerpoly = True # any poly but the first on is an outer poly
 
         answ = Mesh()
         answ.btsource = BTNode(polygons)
 
         return answ
 
-    def _gettransferred3poly(self, t, p2, addvect=Vector3.Zero()):
+    def _gettransferred3poly(self, tr, p2, addvect=Vector3.Zero()):
+        """Get 3 3d polygon from a2d polygon.
+
+            tr : transformation object used to transform coordinates during the process
+            addvect : vector to be added before transformation
+        """
         vertices3 = []
         for vert2 in p2.vertices:
             v3 = Vector3.newFromXYZ(vert2.pos.x, vert2.pos.y, 0.0)
-            v3t = t.transform(v3)
+            v3t = tr.transform(v3 + addvect)
             vertices3.append(Vertex3.newFromXYZ(v3t.x, v3t.y, v3t.z))
 
         return Polygon3(vertices3)

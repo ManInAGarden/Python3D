@@ -117,6 +117,9 @@ class BasicElement:
     def get_polygons(self):
         raise NotImplementedError("getpolygons(): Override me!")
 
+    def clone(self):
+        return BasicElement(self._cent.x, self._cent.x, self._cent.z)
+
 
 class DimensionedElement(BasicElement):
     def __init__(self, centx=0.0, centy=0.0, centz=0.0, xdim=1.0, ydim=1.0, zdim=1.0):
@@ -244,18 +247,32 @@ class CylinderElement(BasicElement):
 
         return answ
 
-class SketchedElement(DimensionedElement):
-    def __init__(self, centx=0.0, centy=0.0, centz=0.0, radx=1.0, rady=1.0, radz=1.0, extr : float = 1.0):
-        super().__init__(centx, centy, centz, radx, rady, radz)
-        self._extr = extr
-        self._polygons = []
-        self._transf = Transformer().scaleinit(1,1,1)
+class LateTransformElement(BasicElement):
+    """abstract class. Derive from this when late transformation shall be used.
+    Then a transformation ist oly applyed when a mesh is created from the simple geometry
+    """
+    def __init__(self, centx, centy, centz):
+        super().__init__(centx, centy, centz)
+        self._transf = Transformer().scaleinit(1,1,1) #neutral transformation
 
     def clone(self):
         answ = super().clone()
-        answ._extr = self._extr
-        answ._polygons = list(map(lambda poly: poly.clone(), self._polygons))
         answ._transf = self._transf.clone()
+        return answ
+
+class SketchedElement(LateTransformElement):
+    def __init__(self, centx=0.0, centy=0.0, centz=0.0, extrup : float = 1.0, extrdown=0.0):
+        super().__init__(centx, centy, centz)
+        assert extrup > extrdown, "combination of extrude down and up makes no sense for up {} down {}".format(extrup, extrdown)
+        self._extrup = extrup #up extrusion in z direction
+        self._extrdown = extrdown #down extrusion in -z direction
+        self._polygons = []
+
+    def clone(self):
+        answ = super().clone()
+        answ._extrup = self._extrup
+        answ._exrrdown = self._extrdown
+        answ._polygons = list(map(lambda poly: poly.clone(), self._polygons))
         return answ
 
     def add_poly(self, poly : Polygon2):
@@ -268,11 +285,11 @@ class SketchedElement(DimensionedElement):
         answ = self.clone()
 
         tr = Transformer().scaleinit(sx, sy, sz)
-        answ._cent = tr.transform(self._cent)
-        answ._dimensions = list(map(tr.transform, self._dimensions))
+        #answ._cent = tr.transform(self._cent)
+        #answ._dimensions = list(map(tr.transform, self._dimensions))
 
-        extrvec = tr.transform(self._dimensions[2].unit() * self._extr) #we use dim_z as a plane-direction
-        answ._extr = extrvec.magnitude()
+        #extrvec = tr.transform(self._dimensions[2].unit() * self._extr) #we use dim_z as a plane-direction
+        #answ._extr = extrvec.magnitude()
         self._transf.addtrans(tr.transmat)
         return answ
 
@@ -282,7 +299,7 @@ class SketchedElement(DimensionedElement):
         if tx==0.0 and ty==0.0 and tz == 0.0: return answ
 
         tr = Transformer().translateinit(tx, ty, tz)
-        answ._cent = tr.transform(self._cent)
+        #answ._cent = tr.transform(self._cent)
         self._transf.addtrans(tr.transmat)
         return answ
 
@@ -300,8 +317,8 @@ class SketchedElement(DimensionedElement):
         else:
             raise Exception("Unknown axis <{}>".format(axis))
 
-        answ._cent = trans.transform(self._cent)
-        answ._dimensions = list(map(trans.transform, self._dimensions))
+        #answ._cent = trans.transform(self._cent)
+        #answ._dimensions = list(map(trans.transform, self._dimensions))
         self._transf.addtrans(trans.transmat)
         return answ
 

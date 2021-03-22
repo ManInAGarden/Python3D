@@ -134,7 +134,10 @@ class Vector3(object):
         return np.linalg.norm(self.pos)
 
     def unit(self):
-        return Vector3((self.pos/np.linalg.norm(self.pos)))
+        if self.pos[0]==0.0 and self.pos[1]==0 and self.pos[2]==0.0:
+            raise Exception("Unit vector for zero vector does not exist.")
+        else:
+            return Vector3((self.pos/np.linalg.norm(self.pos)))
 
 class Vertex3(object):
     """ a class for vertexes of polygons. Quite the same as Vector3 bzt with
@@ -178,7 +181,11 @@ class Plane3(object):
 
     @classmethod
     def newFromPoints(cls, a : Vector3, b : Vector3, c : Vector3):
-        n = (b - a).cross(c - a).unit()
+        try:
+            n = (b - a).cross(c - a).unit()
+        except:
+            raise Exception("Not all points are different {} {} {}".format(str(a), str(b), str(c)))
+
         return Plane3(n, n * a)
 
     def clone(self):

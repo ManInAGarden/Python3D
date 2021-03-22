@@ -1,6 +1,6 @@
-from python3d.Bodies import Body
-from python3d.Polygons import Vector3
-from python3d.Meshes import Mesh
+from python3d.ElementClasses import SketchedElement
+from python3d.Polygons import Vector2
+import numpy
 from numpy.core.arrayprint import _leading_trailing
 from numpy.lib.polynomial import poly
 from TestBase import *
@@ -189,8 +189,8 @@ class ElementTest(TestBase):
 
     def test_cylinder_simple(self):
         cyl = pd.CylinderElement(lz=10, r=5)
-        body = Body().addelement(cyl, quality=20)
-        m = Mesh(body)
+        body = pd.Body().addelement(cyl, quality=20)
+        m = pd.Mesh(body)
         m.name = "Cylindertestmesh"
         fname = m.name + ".stl"
         sth = pd.StlHelper(m, fname, pd.StlModeEnum.ASCII)
@@ -198,46 +198,101 @@ class ElementTest(TestBase):
 
     def test_cylinder_pinched(self):
         cyl = pd.CylinderElement(lz=10, r=10).rotate(pd.AxisEnum.YAXIS, 45)
-        body = Body().addelement(cyl, quality=50)
+        body = pd.Body().addelement(cyl, quality=50)
         cyl2 = pd.CylinderElement(lz=20, r=4).rotate(pd.AxisEnum.YAXIS, 45)
         body.addelement(cyl2, pd.BodyOperationEnum.DIFFERENCE, 50)
-        m = Mesh(body)
+        m = pd.Mesh(body)
         m.name = "Cylinderpinchedtestmesh"
         fname = m.name + ".stl"
         sth = pd.StlHelper(m, fname, pd.StlModeEnum.ASCII)
         sth.write()
 
     def test_findperpinormals(self):
-        m = Mesh()
-        axis = Vector3.Zdir()
+        print("findperpinormals start")
+        m = pd.Mesh()
+        axis = pd.Vector3.Zdir()
         n1, n2 = m._findperpendicularnormals(axis)
         self.assertAlmostEqual(n1 * n2, 0.0)
         self.assertAlmostEqual(axis * n2, 0.0)
         self.assertAlmostEqual(axis * n1, 0.0)
 
-        axis = Vector3.Xdir()
+        axis = pd.Vector3.Xdir()
         n1, n2 = m._findperpendicularnormals(axis)
         self.assertAlmostEqual(n1 * n2, 0.0)
         self.assertAlmostEqual(axis * n2, 0.0)
         self.assertAlmostEqual(axis * n1, 0.0)
 
-        axis = Vector3.Ydir()
+        axis = pd.Vector3.Ydir()
         n1, n2 = m._findperpendicularnormals(axis)
         self.assertAlmostEqual(n1 * n2, 0.0)
         self.assertAlmostEqual(axis * n2, 0.0)
         self.assertAlmostEqual(axis * n1, 0.0)
 
-        axis = Vector3.newFromXYZ(0, 7, -12)
+        axis = pd.Vector3.newFromXYZ(0, 7, -12)
         n1, n2 = m._findperpendicularnormals(axis)
         self.assertAlmostEqual(n1 * n2, 0.0)
         self.assertAlmostEqual(axis * n2, 0.0)
         self.assertAlmostEqual(axis * n1, 0.0)
+        print("findperpinormals end")
+
 
     def test_sketched_element(self):
+        print("sketched_element start")
         extsketch = self._get_box_sketch([-10,-10],[10,-10],[10,10],[-10,10], 3.0)
-        body = Body().addelement(extsketch)
-        m = Mesh(body)
+        body = pd.Body().addelement(extsketch)
+        m = pd.Mesh(body)
         m.name = "Sketchtestmesh"
+        fname = m.name + ".stl"
+        sth = pd.StlHelper(m, fname, pd.StlModeEnum.ASCII)
+        sth.write()
+        print("sketched_element end")
+
+
+    def test_sketched_element_withholes(self):
+        extsketch = self._get_box_sketch([-10,-10],[10,-10],[10,10],[-10,10], 3.0)
+        self._addhole_sketch(extsketch, [-10, -10], 1.0)
+        self._addhole_sketch(extsketch, [ 10, -10], 1.0)
+        self._addhole_sketch(extsketch, [ 10,  10], 1.0)
+        self._addhole_sketch(extsketch, [-10,  10], 1.0)
+
+        body = pd.Body().addelement(extsketch)
+        m = pd.Mesh(body)
+        m.name = "Sketchholestestmesh"
+        fname = m.name + ".stl"
+        sth = pd.StlHelper(m, fname, pd.StlModeEnum.BINARY)
+        sth.write()
+
+    def test_sketched_star(self):
+        spikes = 5
+        rout = 50
+        rin = 20
+        rcur = rout
+        lines = []
+        oldpt = None
+        endpt = None
+        for i in range(2*spikes):
+            phi = -i * math.pi/spikes
+            x = rcur*math.sin(phi)
+            y = rcur*math.cos(phi)
+            pt = pd.Vector2.newFromXY(x, y)
+            if endpt is None: endpt = pt
+            if not oldpt is None:
+                lines.append(pd.Line2(oldpt, pt))
+            
+            if rcur==rout:
+                rcur = rin
+            else:
+                rcur = rout
+
+            oldpt = pt
+
+        lines.append(pd.Line2(oldpt, endpt))
+        skel = SketchedElement(extrdown=-10, extrup=10)
+        skel.add_poly(Polygon2.newFromSketch(*lines))
+
+        body = pd.Body().addelement(skel)
+        m = pd.Mesh(body)
+        m.name = "Sketchedstarsmesh"
         fname = m.name + ".stl"
         sth = pd.StlHelper(m, fname, pd.StlModeEnum.ASCII)
         sth.write()
@@ -260,9 +315,13 @@ class ElementTest(TestBase):
         arc4 = pd.EllipticArc2(corner4, arcrv, 90, 180, 20)
         l41 = pd.Line2(corner4 + pd.Vector2.newFromXY(-arcr,0),
             corner1 + pd.Vector2.newFromXY(-arcr,0))
-        skel = pd.SketchedElement(extr=10)
+        skel = pd.SketchedElement(extrup=10)
         skel.add_poly(Polygon2.newFromSketch(arc1, l12, arc2, l23, arc3, l34, arc4, l41))
         return skel
+
+    def _addhole_sketch(self, sketch, cent, rad):
+        arc = pd.Ellipse2(pd.Vector2.newFromList(cent), pd.Vector2.newFromXY(rad, rad))
+        sketch.add_poly(pd.Polygon2.newFromSketch(arc))
 
 if __name__ == "__main__":
     unittest.main()

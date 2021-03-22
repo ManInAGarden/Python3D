@@ -45,7 +45,7 @@ class ElementTest(TestBase):
         self.assertAlmostEqual(50.0, cyl._r)
 
     def test_sketched(self):
-        skel = pd.SketchedElement(extr=10)
+        skel = pd.SketchedElement(extrup=10)
         l = Line2(pd.Vector2.newFromXY(0,0),
             pd.Vector2.newFromXY(0,1),
             pd.Vector2.newFromXY(1,1),
@@ -53,24 +53,10 @@ class ElementTest(TestBase):
         skel.add_poly(Polygon2.newFromSketch(l))
         
         skelscal = skel.scale(10,10,5)
-        self.assertAlmostEqual(skel._extr*5, skelscal._extr) #just scaled in z times 5 with no rotation and no translation
         self.assertAllPolysAlmostEqual(skel._polygons, skelscal._polygons) #polygons are not touched by tranformations
-        self.assertVectAlmostEqual(skel._cent, skelscal._cent)
+        self.assertVectAlmostEqual(skel._cent, skelscal._cent) #cent is not touched
         
-        skelrot = skel.rotate(pd.AxisEnum.ZAXIS, 45)
-        self.assertAlmostEqual(skel._extr*5, skelscal._extr) #rotation does not touch extrusion factor
-        self.assertAllPolysAlmostEqual(skel._polygons, skelscal._polygons) #polygons are not touched by tranformations
-        #check for rotation of dims by 45deg
-        xrotfact = math.cos(math.pi/4)
-        yrotfact = math.sin(math.pi/4)
-        self.assertMatrAlmostEqual([[xrotfact, yrotfact,0],[-xrotfact, yrotfact,0],[0,0,1]], skelrot._dimensions)
-        self.assertVectAlmostEqual(skel._cent, skelscal._cent) #rotation of (0,0,0) does nothing
         
-        skeltrans = skel.translate(10, 20, 30)
-        self.assertVectAlmostEqual(Vector3.newFromXYZ(10,20,30), skeltrans._cent)
-        self.assertMatrAlmostEqual(skel._dimensions, skeltrans._dimensions) #translation does nothing to dimensions
-        self.assertAlmostEqual(skel._extr, skeltrans._extr)
-        self.assertAllPolysAlmostEqual(skel._polygons, skeltrans._polygons) #polygons are not touched by tranformations
 
     def test_sketched2(self):
         corner1 = pd.Vector2.newFromXY(-10, -10)
@@ -91,7 +77,7 @@ class ElementTest(TestBase):
         arc4 = EllipticArc2(corner4, arcrv, 90, 180, 20)
         l41 = Line2(corner4 + pd.Vector2.newFromXY(-arcr,0),
             corner1 + pd.Vector2.newFromXY(-arcr,0))
-        skel = pd.SketchedElement(extr=10)
+        skel = pd.SketchedElement(extrup=10)
         skel.add_poly(Polygon2.newFromSketch(arc1, l12, arc2, l23, arc3, l34, arc4, l41))
         self.assertEqual(len(skel._polygons), 1)
         self.assertEqual(len(skel._polygons[0].vertices), 4*6 + 4*2) #4 arcs in qual 20 (6 vertices) and 4 lines with tow vertices each
