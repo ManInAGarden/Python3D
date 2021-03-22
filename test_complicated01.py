@@ -16,6 +16,7 @@ class TestBodies(TestBase):
         body.addelement(windowy, pd.BodyOperationEnum.DIFFERENCE)
         body.addelement(windowz, pd.BodyOperationEnum.DIFFERENCE)
         m = pd.Mesh(body)
+        
         m.name = "Complex01mesh"
         fname = m.name + ".stl"
         sth = pd.StlHelper(m, fname, pd.StlModeEnum.BINARY)
