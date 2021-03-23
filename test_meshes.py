@@ -1,14 +1,13 @@
+from TestBaseMeshes import TestBaseMeshes
 from python3d.ElementClasses import SketchedElement
-from python3d.Polygons import Vector2
 import numpy
 from numpy.core.arrayprint import _leading_trailing
 from numpy.lib.polynomial import poly
 from TestBase import *
 import unittest
 import python3d as pd
-import math
 
-class ElementTest(TestBase):
+class ElementTest(TestBaseMeshes):
     def test_boxmesh(self):
         box = pd.BoxElement(xlength=10, ylength=20, zlength=30).rotate(pd.AxisEnum.XAXIS, 45).rotate(pd.AxisEnum.YAXIS, 45)
         b = pd.Body().addelement(box)
@@ -263,36 +262,27 @@ class ElementTest(TestBase):
         sth.write()
 
     def test_sketched_star(self):
-        spikes = 5
-        rout = 50
-        rin = 20
-        rcur = rout
-        lines = []
-        oldpt = None
-        endpt = None
-        for i in range(2*spikes):
-            phi = -i * math.pi/spikes
-            x = rcur*math.sin(phi)
-            y = rcur*math.cos(phi)
-            pt = pd.Vector2.newFromXY(x, y)
-            if endpt is None: endpt = pt
-            if not oldpt is None:
-                lines.append(pd.Line2(oldpt, pt))
-            
-            if rcur==rout:
-                rcur = rin
-            else:
-                rcur = rout
-
-            oldpt = pt
-
-        lines.append(pd.Line2(oldpt, endpt))
+        spoly = self.create_star_polygon()
         skel = SketchedElement(extrdown=-10, extrup=10)
-        skel.add_poly(Polygon2.newFromSketch(*lines))
-
+        skel.add_poly(spoly)
         body = pd.Body().addelement(skel)
+        
         m = pd.Mesh(body)
         m.name = "Sketchedstarsmesh"
+        fname = m.name + ".stl"
+        sth = pd.StlHelper(m, fname, pd.StlModeEnum.ASCII)
+        sth.write()
+
+    def test_sketched_framestar(self):
+        spolyouter = self.create_star_polygon()
+        spolyinner = self.create_star_polygon(5, 15, 45)
+        skel = SketchedElement(extrdown=-10, extrup=10)
+        skel.add_poly(spolyouter)
+        skel.add_poly(spolyinner)
+        body = pd.Body().addelement(skel)
+        
+        m = pd.Mesh(body)
+        m.name = "Sketchedframestarmesh"
         fname = m.name + ".stl"
         sth = pd.StlHelper(m, fname, pd.StlModeEnum.ASCII)
         sth.write()

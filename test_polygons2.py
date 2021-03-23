@@ -35,11 +35,25 @@ class Poly2Test(TestBase):
         v3 = v1.getbetween(v2, 0.5)
         self.assertEqual(pd.Vertex2.newFromXY(20,0), v3)
 
-    def test_vertext_rightoff(self):
+    def test_polygontwist(self):
+        #create a polygon with counterclockwise twist
         v1 = pd.Vertex2.newFromXY(10,0)
         v2 = pd.Vertex2.newFromXY(15,5)
-        self.assertFalse(v2.isrightoff(v1))
-        self.assertTrue(v1.isrightoff(v2))
+        v3 = pd.Vertex2.newFromXY(10, 10)
+        p = pd.Polygon2([v1, v2, v3])
+        ptwist = p.gettwist()
+        self.assertEqual(ptwist, pd.PolygonTwistEnum.COUNTERCLKWISE)
+        p.turnover()
+        self.assertEqual(p.gettwist(), pd.PolygonTwistEnum.CLKWISE)
+        v4 = pd.Vertex2.newFromXY(0,5)
+        p2 = pd.Polygon2([v1,v2,v3,v4])
+        self.assertEqual(p2.gettwist(), pd.PolygonTwistEnum.COUNTERCLKWISE)
+        v5 = pd.Vertex2.newFromXY(10, 5)
+        v6 = pd.Vertex2.newFromXY(0, 0)
+        p3 = pd.Polygon2([v1, v2, v3, v4, v5, v6])
+        self.assertEqual(p3.gettwist(), pd.PolygonTwistEnum.COUNTERCLKWISE)
+        self.assertEqual(p3.turnover().gettwist(), pd.PolygonTwistEnum.CLKWISE)
+
 
 if __name__ == "__main__":
     unittest.main()

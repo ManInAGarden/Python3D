@@ -279,6 +279,10 @@ class SketchedElement(LateTransformElement):
         l = len(poly.vertices)
         assert l>2, "degenrate polygon2 encountered in add_poly"
         assert poly.vertices[0] == poly.vertices[l-1], "Polygon has to be closed"
+        #make sure polygon ist clockwise!
+        twist = poly.gettwist()
+        if twist is PolygonTwistEnum.CLKWISE:
+            poly.turnover()
         self._polygons.append(poly)
 
     def scale(self, sx: float = 1.0, sy: float = 1.0, sz: float = 1.0):

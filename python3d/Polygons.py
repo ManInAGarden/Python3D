@@ -2,6 +2,7 @@ import numpy as np
 from numpy.lib.polynomial import poly
 from numpy.linalg.linalg import norm
 import math as ma
+from enum import Enum
 
 class Vector3(object):
 
@@ -442,10 +443,10 @@ class Vertex2(object):
     def getbetween(self, other, t):
         return Vertex2(self.pos + (other.pos - self.pos)*t)
 
-    def isrightoff(self, other):
-        """return true when other is to the right self
-        """
-        return self.pos.cross(other.pos) > 0
+    # def isrightoff(self, other):
+    #     """return true when other is to the right self
+    #     """
+    #     return self.pos.cross(other.pos) > 0
         
 
 class SketchPart2(object):
@@ -483,6 +484,12 @@ class Ellipse2(EllipticArc2):
         super().__init__(centrept, rv, 0.0, 360.0, quality)
 
 
+class PolygonTwistEnum(Enum):
+    CLKWISE=1
+    COUNTERCLKWISE=2
+    BOTH = 3
+
+
 class Polygon2(object):
     """class for polygons on surfaces (R2)
     """
@@ -515,12 +522,25 @@ class Polygon2(object):
     def clone(self):
         return Polygon2(list(map(lambda vert: vert.clone(), self.vertices)))
 
-    def isrighttwisted(self):
+    def gettwist(self) -> PolygonTwistEnum :
+        """get the overall twist of a polygon
+            note that it can be both twist in a polygon, so hat BOTH maybe returned
+            when no decision can be made.
+        """
+        sar = 0.0
         for i in range(0, len(self.vertices) - 1):
-            if not self.vertices[i+1].isrightoff(self.vertices[i]):
-                return False
+            x1 = self.vertices[i].pos.x
+            y1 = self.vertices[i].pos.y
+            x2 = self.vertices[i+1].pos.x
+            y2 = self.vertices[i+1].pos.y
+            sar += x1*y2 - x2*y1
         
-        return True
+        if sar > 0.0:
+            return PolygonTwistEnum.COUNTERCLKWISE
+        elif sar < 0.0:
+            return PolygonTwistEnum.CLKWISE
+        else:
+            return PolygonTwistEnum.BOTH
 
     def turnover(self):
         self.vertices.reverse()
