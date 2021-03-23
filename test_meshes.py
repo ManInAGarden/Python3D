@@ -97,47 +97,7 @@ class ElementTest(TestBaseMeshes):
         sth = pd.StlHelper(m, "two_balls_ascii.stl", pd.StlModeEnum.ASCII)
         sth.write()
 
-    # def test_ballmeshoutofcentre(self):
-    #     ball = pd.EllipsoidElement(10.0, -90.0, 52.0, 10.0, 10.0, 10.0) #this is a sphere
-    #     srad = 10.0
-    #     cent = ball._cent
-    #     m = pd.Mesh(ball, 10)
-    #     self.assertTrue(len(m._vertices) > 0)
-    #     self.assertTrue(len(m._triangles) > 0)
-    #     #check all the vertices to be on the sphere's surface
-    #     for pt in m._vertices:
-    #         rad = (pt-cent).norm()
-    #         self.assertAlmostEqual(srad, rad)
-
-    # def test_ellipsoidincentre(self):
-    #     elli = pd.EllipsoidElement(0.0, 0.0, 0.0, 10.0, 30.0, 20.0) #this is an ellipsoid
-    #     cent = elli._cent
-    #     m = pd.Mesh(elli, 10)
-    #     self.assertTrue(len(m._vertices) > 0)
-    #     self.assertTrue(len(m._triangles) > 0)
-    #     #check all the vertices to be on the sphere's surface
-    #     asq = elli._dimensions[0].magnitude()**2
-    #     bsq = elli._dimensions[1].magnitude()**2
-    #     csq = elli._dimensions[2].magnitude()**2
-    #     for pt in m._vertices:
-    #         chkval = pt.x**2/asq + pt.y**2/bsq + pt.z**2/csq
-    #         self.assertAlmostEqual(1.0, chkval)
-
-    # def test_ellipsoidoutoffcentre(self):
-    #     m = pd.Mesh()
-    #     elli = pd.EllipsoidElement(-90.0, 100.0, 12.0, 10.0, 30.0, 20.0) #this is an ellipsoid
-    #     cent = elli._cent
-    #     m = pd.Mesh(elli, 10)
-    #     self.assertTrue(len(m._vertices) > 0)
-    #     self.assertTrue(len(m._triangles) > 0)
-    #     #check all the vertices to be on the sphere's surface
-    #     asq = elli._dimensions[0].magnitude()**2
-    #     bsq = elli._dimensions[1].magnitude()**2
-    #     csq = elli._dimensions[2].magnitude()**2
-    #     for ptr in m._vertices:
-    #         pt = ptr - cent
-    #         chkval = pt.x**2/asq + pt.y**2/bsq + pt.z**2/csq
-    #         self.assertAlmostEqual(1.0, chkval)
+    
 
     def test_stl_ascii(self):
         fname = "test_stl_ascii.stl"
@@ -170,30 +130,22 @@ class ElementTest(TestBaseMeshes):
         sth = pd.StlHelper(m, fname, pd.StlModeEnum.ASCII)
         sth.write()
 
-    # # def test_ellipsoidrotated(self):
-    # #     m = pd.Mesh()
-    # #     elli = pd.EllipsoidElement(0.0, 0.0, 0.0, 10.0, 30.0, 20.0).rotate(pd.AxisEnum.ZAXIS, 45).rotate(pd.AxisEnum.YAXIS, 45) #this is an ellipsoid
-    # #     cent = elli._cent
-    # #     m.addelement(elli, quality=10)
-    # #     self.assertTrue(len(m._vertices) > 0)
-    # #     self.assertTrue(len(m._triangles) > 0)
-    # #     #check all the vertices to be on the sphere's surface
-    # #     asq = elli._dimensions[0].norm()**2
-    # #     bsq = elli._dimensions[1].norm()**2
-    # #     csq = elli._dimensions[2].norm()**2
-    # #     for ptr in m._vertices:
-    # #         pt = ptr - cent
-    # #         chkval = pt.x**2/asq + pt.y**2/bsq + pt.z**2/csq
-    # #         self.assertAlmostEqual(1.0, chkval)
-
+   
     def test_cylinder_simple(self):
         cyl = pd.CylinderElement(lz=10, r=5)
         body = pd.Body().addelement(cyl, quality=20)
         m = pd.Mesh(body)
-        m.name = "Cylindertestmesh"
-        fname = m.name + ".stl"
-        sth = pd.StlHelper(m, fname, pd.StlModeEnum.ASCII)
-        sth.write()
+        m.name = "test_cylinder_simple"
+
+        self.write_stl(m)
+
+    def test_cylinder_translated(self):
+        cyl = pd.CylinderElement(lz=10, r=25).translate(20,20,20)
+        body = pd.Body().addelement(cyl, quality=20)
+        m = pd.Mesh(body)
+        m.name = "test_cylinder_translated"
+
+        self.write_stl(m)
 
     def test_cylinder_pinched(self):
         cyl = pd.CylinderElement(lz=10, r=10).rotate(pd.AxisEnum.YAXIS, 45)
@@ -201,13 +153,11 @@ class ElementTest(TestBaseMeshes):
         cyl2 = pd.CylinderElement(lz=20, r=4).rotate(pd.AxisEnum.YAXIS, 45)
         body.addelement(cyl2, pd.BodyOperationEnum.DIFFERENCE, 50)
         m = pd.Mesh(body)
-        m.name = "Cylinderpinchedtestmesh"
-        fname = m.name + ".stl"
-        sth = pd.StlHelper(m, fname, pd.StlModeEnum.ASCII)
-        sth.write()
+        m.name = "test_cylinder_pinched"
+        self.write_stl(m)
+
 
     def test_findperpinormals(self):
-        print("findperpinormals start")
         m = pd.Mesh()
         axis = pd.Vector3.Zdir()
         n1, n2 = m._findperpendicularnormals(axis)
@@ -232,7 +182,6 @@ class ElementTest(TestBaseMeshes):
         self.assertAlmostEqual(n1 * n2, 0.0)
         self.assertAlmostEqual(axis * n2, 0.0)
         self.assertAlmostEqual(axis * n1, 0.0)
-        print("findperpinormals end")
 
 
     def test_sketched_element(self):
@@ -244,7 +193,6 @@ class ElementTest(TestBaseMeshes):
         fname = m.name + ".stl"
         sth = pd.StlHelper(m, fname, pd.StlModeEnum.ASCII)
         sth.write()
-        print("sketched_element end")
 
 
     def test_sketched_element_withholes(self):

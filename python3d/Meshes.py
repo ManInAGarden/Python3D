@@ -211,7 +211,7 @@ class Mesh(object):
         lstp = lmag / quality
         formerpts = None
         for cf in np.arange(-0.5, 0.5 + 1/quality, 1/quality):
-            cv = (cyl._l - cyl._cent) * cf
+            cv = cyl._cent + cyl._l * cf
             cstp = 2 * ma.pi/quality
             currentpts = []
             for phi in np.arange(0.0, 2* ma.pi + cstp, cstp):

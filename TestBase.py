@@ -3,6 +3,9 @@ import unittest
 
 
 class TestBase(unittest.TestCase):
+
+    stlpath = "stlsfromtest\\"
+    
     def assertVectAlmostEqual(self, exp, cand, places = 6):
         dimexp = len(exp)
         dimcand = len(cand)

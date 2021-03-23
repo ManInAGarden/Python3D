@@ -24,3 +24,8 @@ class TestBaseMeshes(TestBase):
         line = pd.Line2(*points)
 
         return pd.Polygon2.newFromSketch(line)
+
+    def write_stl(self, m : pd.Mesh):
+        fname = self.stlpath + m.name + ".stl"
+        sth = pd.StlHelper(m, fname, pd.StlModeEnum.BINARY)
+        sth.write()
