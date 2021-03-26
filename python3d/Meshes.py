@@ -1,3 +1,4 @@
+from math import sin
 from .ElementClasses import *
 from .Bodies import *
 import sys
@@ -49,16 +50,16 @@ class Mesh(object):
         tele = type(ele)
         if tele is BoxElement:
             return self._create_boxmesh(ele)
-        elif tele is EllipsoidElement:
+        elif tele is EllipsoidElement or tele is SphereElement:
             return self._create_ellipsoidmesh(ele, quality)
         elif tele is CylinderElement:
             return self._create_cylindermesh(ele, quality)
-        elif tele is SketchedElement:
-            return self._create_sketchmesh(ele, quality)
+        elif tele is LineExtrudedElement:
+            return self._create_linexmesh(ele, quality)
         else:
             raise Exception("Unknonw element type <{}> in _create_mesh".format(tele.__name__))
 
-    def _create_sketchmesh(self, skel : SketchedElement, quality):
+    def _create_linexmesh(self, skel : LineExtrudedElement, quality):
         polygons = []
         tr = skel._transf
         botcpt = skel._cent + Vector3.Zdir() * skel._extrdown #botton centre point of the 2d sektch
@@ -146,21 +147,16 @@ class Mesh(object):
 
     def _create_ellipsoidmesh(self, ball : EllipsoidElement, quality):
         polygons = []
+        tr = ball._transf
         formercirc = None
         currentcirc = None
         stp = 2*ma.pi/quality
         ec = ball._cent
-        rxvec = ball._dimensions[0]
-        ryvec = ball._dimensions[1]
-        rzvec = ball._dimensions[2]
-        a = rxvec.magnitude()
-        b = ryvec.magnitude()
-        c = rzvec.magnitude()
-        rxdir = rxvec/a
-        rydir = ryvec/b
-        rzdir = rzvec/c
-        botpt = ec - rzvec
-        toppt = ec + rzvec
+        a = ball._rx
+        b = ball._ry
+        c = ball._rz
+        botpt = tr.transform(ec - Vector3.Zdir()*c)
+        toppt = tr.transform(ec + Vector3.Zdir()*c)
         for chi in np.arange(-ma.pi/2.0 + stp, ma.pi/2.0, stp):
             formercirc = currentcirc
             currentcirc = []
@@ -168,7 +164,7 @@ class Mesh(object):
                 xi = a * ma.cos(chi) * ma.cos(phi)
                 yi = b * ma.cos(chi) * ma.sin(phi)
                 zi = c * ma.sin(chi)
-                dotpos = ec + rxdir*xi + rydir*yi + rzdir*zi #Vector3(xi, yi, zi)
+                dotpos = tr.transform(ec + Vector3.newFromXYZ(xi, yi, zi))
                 currentcirc.append(dotpos)
 
             for i in range(len(currentcirc)-1):
@@ -200,39 +196,40 @@ class Mesh(object):
     def _create_cylindermesh(self, cyl : CylinderElement, quality):
         """create a mesh for a cylinder element
         """
-        rx, ry = self._findperpendicularnormals(cyl._l)
-        rx = rx * cyl._r
-        ry = ry * cyl._r
+        rx = cyl._rx
+        ry = cyl._ry
+        l = cyl._l
+        tr = cyl._transf
         #top
-        polygons = self._create_circle_mesh(cyl._cent + (cyl._l * 0.5), rx, ry, quality)
+        toppolygons = self._create_circle_mesh(cyl._cent + (Vector3.Zdir() * cyl._l * 0.5), rx, ry, quality)
+        polygons = []
+        for poly in toppolygons:
+            polygons.append(cyl._transf.transform(poly))
 
         #rounded shell
-        lmag = cyl._l.magnitude()
-        lstp = lmag / quality
         formerpts = None
-        for cf in np.arange(-0.5, 0.5 + 1/quality, 1/quality):
-            cv = cyl._cent + cyl._l * cf
-            cstp = 2 * ma.pi/quality
-            currentpts = []
-            for phi in np.arange(0.0, 2* ma.pi + cstp, cstp):
-                currentpts.append(cv + rx*ma.cos(phi) + ry*ma.sin(phi))
+        zpt = cyl._cent.z - l/2
+        cstp = 2 * ma.pi/quality
+        pts_lower = []
+        pts_upper = []
+        for phi in np.arange(0.0, 2* ma.pi + cstp, cstp):
+            xpt = cyl._rx*ma.sin(phi)
+            ypt = cyl._ry*ma.cos(phi)
+            pts_lower.append(tr.transform(Vector3.newFromXYZ(xpt, ypt, zpt)))
+            pts_upper.append(tr.transform(Vector3.newFromXYZ(xpt, ypt, zpt + l)))
 
-            if not formerpts is None:
-                for i in range(len(currentpts)-1):
-                    leftcurrent = Vertex3(currentpts[i])
-                    rightcurrent = Vertex3(currentpts[i+1])
-                    leftformer = Vertex3(formerpts[i])
-                    rightformer = Vertex3(formerpts[i+1])
-                    polygons.append(Polygon3([leftformer, rightcurrent, leftcurrent]))
-                    polygons.append(Polygon3([leftformer, rightformer, rightcurrent]))
-
-            formerpts = currentpts
+        for i in range(len(pts_lower)-1):
+                leftlower = Vertex3(pts_lower[i])
+                rightlower = Vertex3(pts_lower[i+1])
+                leftupper = Vertex3(pts_upper[i])
+                rightupper = Vertex3(pts_upper[i+1])
+                polygons.append(Polygon3([leftlower, leftupper, rightupper]))
+                polygons.append(Polygon3([rightupper, rightlower, leftlower]))
 
         #bottom
-        botpolys = self._create_circle_mesh(cyl._cent - (cyl._l * 0.5), rx, ry, quality)
-        for botpoly in botpolys:
-            botpoly.turnover()
-        polygons.extend(botpolys)
+        botpolys = self._create_circle_mesh(cyl._cent - (Vector3.Zdir() * cyl._l * 0.5), rx, ry, quality)
+        for poly in botpolys:
+            polygons.append(cyl._transf.transform(poly.turnover()))
 
         answ = Mesh()
         answ.btsource = BTNode(polygons)
@@ -253,7 +250,7 @@ class Mesh(object):
 
         return v1.unit(), v2.unit()
 
-    def _create_circle_mesh(self, centre : Vector3, rx : Vector3, ry : Vector3, quality : int):
+    def _create_circle_mesh(self, centre : Vector3, rx : float, ry : float, quality : int):
         """create a submesh for  a circle in R3
         """
         polygons = []
@@ -261,9 +258,9 @@ class Mesh(object):
         oldpt = None
         cvert = Vertex3(centre)
         for phi in np.arange(0.0, 2* ma.pi + stp, stp):
-            pt = centre + rx*ma.cos(phi) + ry*ma.sin(phi) 
+            pt = centre + Vector3.newFromXYZ(rx*ma.sin(phi), ry*ma.cos(phi), 0.0) 
             if not oldpt is None:
-                poly = Polygon3([Vertex3(oldpt), Vertex3(pt), cvert])
+                poly = Polygon3([cvert, Vertex3(pt), Vertex3(oldpt)])
                 polygons.append(poly)
             oldpt = pt
 
@@ -275,7 +272,7 @@ class Mesh(object):
         dx = box._dimensions[0]
         dy = box._dimensions[1]
         dz = box._dimensions[2]
-        p1 = box._cent
+        p1 = box._cent - dx/2 - dy/2 - dz/2
         p2 = p1 + dx
         p3 = p1 + dy
         p4 = p1 + dz

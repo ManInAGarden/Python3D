@@ -25,7 +25,7 @@ class TestBaseMeshes(TestBase):
 
         return pd.Polygon2.newFromSketch(line)
 
-    def write_stl(self, m : pd.Mesh):
+    def write_stl(self, m : pd.Mesh, mode : pd.StlModeEnum = pd.StlModeEnum.BINARY):
         fname = self.stlpath + m.name + ".stl"
-        sth = pd.StlHelper(m, fname, pd.StlModeEnum.BINARY)
+        sth = pd.StlHelper(m, fname, mode)
         sth.write()

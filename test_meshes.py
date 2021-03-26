@@ -1,5 +1,5 @@
+from python3d.Bodies import BodyOperationEnum
 from TestBaseMeshes import TestBaseMeshes
-from python3d.ElementClasses import SketchedElement
 import numpy
 from numpy.core.arrayprint import _leading_trailing
 from numpy.lib.polynomial import poly
@@ -32,46 +32,40 @@ class ElementTest(TestBaseMeshes):
         self.assertAlmostEqual(0.0, normsum.z)
 
     def test_box_union(self):
-        b1 = pd.BoxElement(xlength=15,ylength=15,zlength=15).translate(-7.5, -7.5, -7.5)
-        b2 = pd.BoxElement(xlength=30, ylength=5, zlength=5).translate(-15, -2.5, -2.5)
+        b1 = pd.BoxElement(xlength=15,ylength=15,zlength=15)
+        b2 = pd.BoxElement(xlength=30, ylength=5, zlength=5)
         body = pd.Body().addelement(b1)
         body.addelement(b2) #union is default operation
         m = pd.Mesh(body)
         self.assertIsNotNone(m.btsource)
 
-        fname = "test_stl_boxuinion.stl"
-        m.name = "Boxuniontest"
-        sth = pd.StlHelper(m, fname, pd.StlModeEnum.ASCII)
-        sth.write()
+        m.name = "test_box_union"
+        self.write_stl(m)
 
     def test_box_difference(self):
-        b1 = pd.BoxElement(xlength=15,ylength=15,zlength=15).translate(-7.5, -7.5, -7.5)
-        b2 = pd.BoxElement(xlength=30, ylength=5, zlength=5).translate(-15, -2.5, -2.5)
+        b1 = pd.BoxElement(xlength=15,ylength=15,zlength=15)
+        b2 = pd.BoxElement(xlength=30, ylength=5, zlength=5)
         body = pd.Body().addelement(b1)
         body.addelement(b2, pd.BodyOperationEnum.DIFFERENCE) 
         m = pd.Mesh(body)
         self.assertIsNotNone(m.btsource)
+        m.name = "test_stl_boxdifference"
 
-        fname = "test_stl_boxdifference.stl"
-        m.name = "Boxdifferencetest"
-        sth = pd.StlHelper(m, fname, pd.StlModeEnum.ASCII)
-        sth.write()
+        self.write_stl(m)
 
     def test_box_intersect(self):
-        b1 = pd.BoxElement(xlength=15,ylength=15,zlength=15).translate(-7.5, -7.5, -7.5)
-        b2 = pd.BoxElement(xlength=30, ylength=5, zlength=5).translate(-15, -2.5, -2.5)
+        b1 = pd.BoxElement(xlength=15,ylength=15,zlength=15)
+        b2 = pd.BoxElement(xlength=30, ylength=5, zlength=5)
         body = pd.Body().addelement(b1)
         body.addelement(b2, pd.BodyOperationEnum.INTERSECTION) 
         m = pd.Mesh(body)
         self.assertIsNotNone(m.btsource)
 
-        fname = "test_stl_intersect.stl"
-        m.name = "Boxintersecttest"
-        sth = pd.StlHelper(m, fname, pd.StlModeEnum.ASCII)
-        sth.write()
+        m.name = "test_box_intersect"
+        self.write_stl(m)
 
     def test_sphere_polygons(self):
-        elli = pd.EllipsoidElement(radx=10.0, rady=10.0,radz=10.0)
+        elli = pd.EllipsoidElement(rx=10.0, ry=10.0,rz=10.0)
         body = pd.Body().addelement(elli, quality=20)
         m = pd.Mesh(body)
         cent = elli._cent
@@ -94,8 +88,8 @@ class ElementTest(TestBaseMeshes):
         body = pd.Body().addelement(ball1, quality=20)
         body.addelement(ball2, quality=20)
         m = pd.Mesh(body)
-        sth = pd.StlHelper(m, "two_balls_ascii.stl", pd.StlModeEnum.ASCII)
-        sth.write()
+        m.name = "test_two_ball_merge"
+        self.write_stl(m)
 
     
 
@@ -105,9 +99,8 @@ class ElementTest(TestBaseMeshes):
         box = pd.BoxElement(0, 0, 0, 100, 100, 100)
         body = pd.Body().addelement(box)
         m = pd.Mesh(body)
-        m.name = "Boxtestmesh"
-        sth = pd.StlHelper(m, fname, pd.StlModeEnum.ASCII)
-        sth.write()
+        m.name = "test_stl_ascii"
+        self.write_stl(m, pd.StlModeEnum.ASCII)
 
     def test_stl_bin(self):
         fname = "test_stl_bin.stl"
@@ -116,23 +109,37 @@ class ElementTest(TestBaseMeshes):
         body = pd.Body()
         body.addelement(box)
         m = pd.Mesh(body)
-        m.name = "Boxtestmesh"
-        sth = pd.StlHelper(m, fname, pd.StlModeEnum.BINARY)
-        sth.write()
+        m.name = "test_stl_bin"
+        self.write_stl(m, pd.StlModeEnum.BINARY)
 
-    def test_stl_ascii2(self):
-        fname = "test_stl_ascii2.stl"
 
+    def test_stl_ellipsoid_simple(self):
+        elli = pd.EllipsoidElement(0, 0, 0, 100, 100, 100)
+        body = pd.Body().addelement(elli, quality=20)
+        m = pd.Mesh(body)
+        m.name = "test_stl_ellipsoid_simple"
+        self.write_stl(m)
+
+    def test_stl_ellipsoid_rotated(self):
         elli = pd.EllipsoidElement(0, 0, 0, 100, 70, 50).rotate(pd.AxisEnum.ZAXIS, 45)
         body = pd.Body().addelement(elli, quality=20)
         m = pd.Mesh(body)
-        m.name = "Ellipsoidtestmesh"
-        sth = pd.StlHelper(m, fname, pd.StlModeEnum.ASCII)
-        sth.write()
+        m.name = "test_stl_ellipsoid_rotated"
+        self.write_stl(m)
+
+    def test_stl_ellipsoid_pinched(self):
+        #view triangles in viewer to see this
+        elli = pd.EllipsoidElement(rx=100, ry=70, rz=50)
+        body = pd.Body().addelement(elli, quality=30)
+        toolelli = pd.EllipsoidElement(rx=10, ry=10, rz=10).translate(100,0,0) #places centre on the outer tip of first ellipsoid
+        body.addelement(toolelli, BodyOperationEnum.DIFFERENCE, 30)
+        m = pd.Mesh(body)
+        m.name = "test_stl_ellipsoid_pinched"
+        self.write_stl(m)
 
    
     def test_cylinder_simple(self):
-        cyl = pd.CylinderElement(lz=10, r=5)
+        cyl = pd.CylinderElement(l=10, rx=5, ry=5)
         body = pd.Body().addelement(cyl, quality=20)
         m = pd.Mesh(body)
         m.name = "test_cylinder_simple"
@@ -140,18 +147,26 @@ class ElementTest(TestBaseMeshes):
         self.write_stl(m)
 
     def test_cylinder_translated(self):
-        cyl = pd.CylinderElement(lz=10, r=25).translate(20,20,20)
+        cyl = pd.CylinderElement(l=10, rx=25, ry=25).translate(20,20,20)
         body = pd.Body().addelement(cyl, quality=20)
         m = pd.Mesh(body)
         m.name = "test_cylinder_translated"
 
         self.write_stl(m)
 
+    def test_cylinder_rotated(self):
+        cyl = pd.CylinderElement(l=20, rx=5, ry=5).rotate(pd.AxisEnum.YAXIS, 45)
+        body = pd.Body().addelement(cyl, quality=20)
+        m = pd.Mesh(body)
+        m.name = "test_cylinder_rotated"
+
+        self.write_stl(m)
+
     def test_cylinder_pinched(self):
-        cyl = pd.CylinderElement(lz=10, r=10).rotate(pd.AxisEnum.YAXIS, 45)
-        body = pd.Body().addelement(cyl, quality=50)
-        cyl2 = pd.CylinderElement(lz=20, r=4).rotate(pd.AxisEnum.YAXIS, 45)
-        body.addelement(cyl2, pd.BodyOperationEnum.DIFFERENCE, 50)
+        cyl = pd.CylinderElement(l=10, rx=10, ry=10).rotate(pd.AxisEnum.YAXIS, 45)
+        body = pd.Body().addelement(cyl, quality=30)
+        cyl2 = pd.CylinderElement(l=20, rx=4, ry=4).rotate(pd.AxisEnum.YAXIS, 45)
+        body.addelement(cyl2, pd.BodyOperationEnum.DIFFERENCE, 30)
         m = pd.Mesh(body)
         m.name = "test_cylinder_pinched"
         self.write_stl(m)
@@ -185,14 +200,11 @@ class ElementTest(TestBaseMeshes):
 
 
     def test_sketched_element(self):
-        print("sketched_element start")
         extsketch = self._get_box_sketch([-10,-10],[10,-10],[10,10],[-10,10], 3.0)
         body = pd.Body().addelement(extsketch)
         m = pd.Mesh(body)
-        m.name = "Sketchtestmesh"
-        fname = m.name + ".stl"
-        sth = pd.StlHelper(m, fname, pd.StlModeEnum.ASCII)
-        sth.write()
+        m.name = "test_sketched_element"
+        self.write_stl(m)
 
 
     def test_sketched_element_withholes(self):
@@ -204,36 +216,30 @@ class ElementTest(TestBaseMeshes):
 
         body = pd.Body().addelement(extsketch)
         m = pd.Mesh(body)
-        m.name = "Sketchholestestmesh"
-        fname = m.name + ".stl"
-        sth = pd.StlHelper(m, fname, pd.StlModeEnum.BINARY)
-        sth.write()
+        m.name = "test_sketched_element_withholes"
+        self.write_stl(m)
 
     def test_sketched_star(self):
         spoly = self.create_star_polygon()
-        skel = SketchedElement(extrdown=-10, extrup=10)
+        skel = pd.LineExtrudedElement(extrdown=-10, extrup=10)
         skel.add_poly(spoly)
         body = pd.Body().addelement(skel)
         
         m = pd.Mesh(body)
-        m.name = "Sketchedstarsmesh"
-        fname = m.name + ".stl"
-        sth = pd.StlHelper(m, fname, pd.StlModeEnum.ASCII)
-        sth.write()
+        m.name = "test_sketched_star"
+        self.write_stl(m)
 
     def test_sketched_framestar(self):
         spolyouter = self.create_star_polygon()
         spolyinner = self.create_star_polygon(5, 15, 45)
-        skel = SketchedElement(extrdown=-10, extrup=10)
+        skel = pd.LineExtrudedElement(extrdown=-10, extrup=10)
         skel.add_poly(spolyouter)
         skel.add_poly(spolyinner)
         body = pd.Body().addelement(skel)
         
         m = pd.Mesh(body)
-        m.name = "Sketchedframestarmesh"
-        fname = m.name + ".stl"
-        sth = pd.StlHelper(m, fname, pd.StlModeEnum.ASCII)
-        sth.write()
+        m.name = "test_sketched_framestar"
+        self.write_stl(m)
 
     def _get_box_sketch(self, c1, c2, c3, c4, arcr):
         corner1 = pd.Vector2.newFromList(c1)
@@ -253,7 +259,7 @@ class ElementTest(TestBaseMeshes):
         arc4 = pd.EllipticArc2(corner4, arcrv, 90, 180, 20)
         l41 = pd.Line2(corner4 + pd.Vector2.newFromXY(-arcr,0),
             corner1 + pd.Vector2.newFromXY(-arcr,0))
-        skel = pd.SketchedElement(extrup=10)
+        skel = pd.LineExtrudedElement(extrup=10)
         skel.add_poly(Polygon2.newFromSketch(arc1, l12, arc2, l23, arc3, l34, arc4, l41))
         return skel
 

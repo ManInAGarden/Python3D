@@ -7,7 +7,7 @@ class TestBodies(TestBaseMeshes):
     def test_tortured_cube(self):
         cube = pd.BoxElement(-25, -25, -25, 50, 50, 50)
         body = pd.Body().addelement(cube)
-        innerelli = pd.EllipsoidElement(radx=20, rady=20, radz=20)
+        innerelli = pd.EllipsoidElement(rx=20, ry=20, rz=20)
         body.addelement(innerelli, pd.BodyOperationEnum.DIFFERENCE, 20)
         windowx = pd.BoxElement(-50, -10, -10, 100, 20, 20)
         windowy = windowx.rotate(pd.AxisEnum.ZAXIS, 90)
@@ -21,9 +21,9 @@ class TestBodies(TestBaseMeshes):
         self.write_stl(m)
 
     def test_starpierced_cookie(self):
-        cookie = pd.CylinderElement(lz=20, r=70)
+        cookie = pd.CylinderElement(l=20, rx=70, ry=70)
         spoly = self.create_star_polygon() #create a star with 5 tips
-        skel = pd.SketchedElement(extrdown=-10, extrup=10)
+        skel = pd.LineExtrudedElement(extrdown=-10, extrup=10)
         skel.add_poly(spoly)
 
         cyls = []
@@ -33,7 +33,7 @@ class TestBodies(TestBaseMeshes):
             phi = i * 2 * math.pi/5
             #cyls.append(pd.CylinderElement(lz=50, r=5).translate(r*math.sin(phi), r*math.cos(phi), 0.0))
             #or even like this
-            cyls.append(pd.CylinderElement(lz=50, r=5).translate(0.0, r, 0.0).rotate(pd.AxisEnum.ZAXIS, phi/math.pi * 180.0))
+            cyls.append(pd.CylinderElement(l=50, rx=5, ry=5).translate(0.0, r, 0.0).rotate(pd.AxisEnum.ZAXIS, phi/math.pi * 180.0))
 
         body = pd.Body().addelement(cookie)
         body.addelement(skel, pd.BodyOperationEnum.DIFFERENCE)
@@ -44,6 +44,30 @@ class TestBodies(TestBaseMeshes):
         m.name = "test_starpierced_cookie"
 
         self.write_stl(m)
+
+    def test_ball_chain(self):
+        ellis = []
+        for i in range(5):
+            ellis.append(pd.SphereElement(r=10))
+        
+        body = pd.Body()
+        zpos = 0
+        first = True
+        for elli in ellis:
+            if first:
+                first = False
+                zpos = elli._rz
+                body.addelement(elli, quality=20)
+            else:
+                body.addelement(elli.translate(0.0, 0.0, zpos + elli._rz), quality=20)
+                zpos += 2* elli._rz
+
+        m = pd.Mesh(body)
+        m.name = "test_ball_chain"
+        self.write_stl(m)
+
+
+        
 
 
 if __name__ == "__main__":
