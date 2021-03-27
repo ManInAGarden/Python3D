@@ -1,3 +1,4 @@
+from python3d.ElementClasses import CylinderElement
 import unittest
 import python3d as pd
 from TestBase import *
@@ -5,11 +6,11 @@ from TestBaseMeshes import *
 
 class TestBodies(TestBaseMeshes):
     def test_tortured_cube(self):
-        cube = pd.BoxElement(-25, -25, -25, 50, 50, 50)
+        cube = pd.BoxElement(0, 0, 0, 50, 50, 50)
         body = pd.Body().addelement(cube)
         innerelli = pd.EllipsoidElement(rx=20, ry=20, rz=20)
         body.addelement(innerelli, pd.BodyOperationEnum.DIFFERENCE, 20)
-        windowx = pd.BoxElement(-50, -10, -10, 100, 20, 20)
+        windowx = pd.BoxElement(0, 0, 0, 100, 20, 20)
         windowy = windowx.rotate(pd.AxisEnum.ZAXIS, 90)
         windowz = windowx.rotate(pd.AxisEnum.YAXIS, 90)
         body.addelement(windowx, pd.BodyOperationEnum.DIFFERENCE)
@@ -52,15 +53,20 @@ class TestBodies(TestBaseMeshes):
         
         body = pd.Body()
         zpos = 0
+        dist = 0.0
         first = True
         for elli in ellis:
             if first:
                 first = False
-                zpos = elli._rz
+                zpos = elli._rz + dist
                 body.addelement(elli, quality=20)
             else:
-                body.addelement(elli.translate(0.0, 0.0, zpos + elli._rz), quality=20)
-                zpos += 2* elli._rz
+                body.addelement(elli.translate(0.0, 0.0, zpos + elli._rz + dist), quality=20)
+                zpos += 2* elli._rz + dist
+
+        cyl = CylinderElement(rx=5, ry=5, l=20*len(ellis) + 20).translate(0,0, (10*len(ellis) + 20)/2)
+        body.addelement(cyl, quality=30)
+        body.rotate(pd.AxisEnum.YAXIS, 45)
 
         m = pd.Mesh(body)
         m.name = "test_ball_chain"

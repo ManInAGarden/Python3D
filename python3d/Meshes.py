@@ -151,21 +151,28 @@ class Mesh(object):
         formercirc = None
         currentcirc = None
         stp = 2*ma.pi/quality
+        phistp = stp
         ec = ball._cent
         a = ball._rx
         b = ball._ry
         c = ball._rz
         botpt = tr.transform(ec - Vector3.Zdir()*c)
         toppt = tr.transform(ec + Vector3.Zdir()*c)
-        for chi in np.arange(-ma.pi/2.0 + stp, ma.pi/2.0, stp):
+        for chi in np.arange(-ma.pi/2.0 + phistp, ma.pi/2.0, phistp):
             formercirc = currentcirc
             currentcirc = []
-            for phi in np.arange(0, 2*ma.pi + stp, stp):
+            for i in range(quality):
+                phi = i*stp
                 xi = a * ma.cos(chi) * ma.cos(phi)
                 yi = b * ma.cos(chi) * ma.sin(phi)
                 zi = c * ma.sin(chi)
                 dotpos = tr.transform(ec + Vector3.newFromXYZ(xi, yi, zi))
+                if i == 0:
+                    firstdotpos = dotpos
+
                 currentcirc.append(dotpos)
+
+            currentcirc.append(firstdotpos) #close the loop
 
             for i in range(len(currentcirc)-1):
                 if formercirc is None:
@@ -209,14 +216,21 @@ class Mesh(object):
         #rounded shell
         formerpts = None
         zpt = cyl._cent.z - l/2
-        cstp = 2 * ma.pi/quality
         pts_lower = []
         pts_upper = []
-        for phi in np.arange(0.0, 2* ma.pi + cstp, cstp):
+        for i in range(quality):
+            phi = i*2*ma.pi/quality
             xpt = cyl._rx*ma.sin(phi)
             ypt = cyl._ry*ma.cos(phi)
+            if i==0:
+                firstxpt = xpt
+                firstypt = ypt
             pts_lower.append(tr.transform(Vector3.newFromXYZ(xpt, ypt, zpt)))
             pts_upper.append(tr.transform(Vector3.newFromXYZ(xpt, ypt, zpt + l)))
+
+        #close the fullcircle exactly - more secure than doing the loop to i<(quality+1)
+        pts_lower.append(tr.transform(Vector3.newFromXYZ(firstxpt, firstypt, zpt)))
+        pts_upper.append(tr.transform(Vector3.newFromXYZ(firstxpt, firstypt, zpt + l)))
 
         for i in range(len(pts_lower)-1):
                 leftlower = Vertex3(pts_lower[i])
@@ -254,15 +268,21 @@ class Mesh(object):
         """create a submesh for  a circle in R3
         """
         polygons = []
-        stp = 2 * ma.pi/quality
         oldpt = None
         cvert = Vertex3(centre)
-        for phi in np.arange(0.0, 2* ma.pi + stp, stp):
+        stp = 2*ma.pi/quality
+        for i in range(quality):
+            phi = i*stp
             pt = centre + Vector3.newFromXYZ(rx*ma.sin(phi), ry*ma.cos(phi), 0.0) 
+            if i==0:
+                firstpt = pt
+
             if not oldpt is None:
                 poly = Polygon3([cvert, Vertex3(pt), Vertex3(oldpt)])
                 polygons.append(poly)
             oldpt = pt
+
+        polygons.append(Polygon3([cvert, Vertex3(firstpt), Vertex3(oldpt)])) #close the circle
 
         return polygons
 
@@ -338,7 +358,7 @@ class Mesh(object):
         self.btsource = a
 
     def _diffmergemesh(self, other):
-        """merge another mesh to self and apply the union operation
+        """merge another mesh to self and apply the diff operation
         """
         a = self.btsource.clone()
         b = other.btsource.clone()
@@ -353,6 +373,8 @@ class Mesh(object):
         self.btsource = a
 
     def _intermergemesh(self, other):
+        """merge another mesh to self with the intersect operation
+        """
         a = self.btsource.clone()
         b = other.btsource.clone()
         a.invert()

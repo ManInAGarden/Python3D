@@ -3,6 +3,8 @@ from numpy.lib.polynomial import poly
 from numpy.linalg.linalg import norm
 import math as ma
 from enum import Enum
+import mapbox_earcut as mbe
+
 
 class Vector3(object):
 
@@ -165,6 +167,9 @@ class Vertex3(object):
     def __str__(self):
         return "Vertex3 {}".format(str(self.pos))
 
+    def __repr__(self) -> str:
+        return "Vertex3 x {} y {} z {}".format(self.pos.x, self.pos.y, self.pos.z)
+
     def getbetween(self, other, t):
         """get a position on the connection between self and other (both vertices)
         weighed by t
@@ -203,6 +208,7 @@ class Plane3(object):
         `coplanarFront` or `coplanarBack` depending on their orientation with
         respect to this plane. Polygons in front or in back of this plane go into
         either `front` or `back`
+        "stolen" and adapted from pycsg
         """
         epsi = 1.e-9
         COPLANAR = 0 # all the vertices are within EPSILON distance from plane
@@ -267,32 +273,9 @@ class Plane3(object):
             if len(b) >= 3: 
                 back.append(Polygon3(b))
 
-class Polygon3(object):
-    """class for polygons 3d-space (R3)
-    """
-    def __init__(self, vertices):
-        self.vertices = vertices
-        self.plane = Plane3.newFromPoints(vertices[0].pos, vertices[1].pos, vertices[2].pos)
 
-    def clone(self):
-        return Polygon3(list(map(lambda vert: vert.clone(), self.vertices)))
 
-    def turnover(self):
-        self.vertices.reverse()
-        self.plane.turnover()
-        return self
 
-    def to_triangles(self):
-        """return a list of polygons describing only triangles
-        """
-        if len(self.vertices)==3:
-            return [self] #we always return a list even though it only return the polygon itself 
-
-        answ = [Polygon3(self.vertices[0:3])]
-        for i in range(3, len(self.vertices)):
-            answ.append(Polygon3([self.vertices[0], self.vertices[i-1], self.vertices[i]]))
-
-        return answ
 
 
 class Vector2(object):
@@ -440,6 +423,9 @@ class Vertex2(object):
     def __str__(self):
         return "Vertex2 {}".format(str(self.pos))
 
+    def __repr__(self) -> str:
+        return "Vertex2 x {} y {}".format(self.pos.x, self.pos.y)
+
     def getbetween(self, other, t):
         return Vertex2(self.pos + (other.pos - self.pos)*t)
 
@@ -495,6 +481,10 @@ class Polygon2(object):
     """
     def __init__(self, vertices):
         self.vertices = vertices # vertices are expected as Vertex2
+        self._cc = None #paraamters to project the 2d polygon back into 3d space in case it was constructed from a 3d polygon
+        self._plz = None
+        self._plx = None
+        self._ply = None
 
     @classmethod
     def newFromSketch(self, *parts):
@@ -520,7 +510,13 @@ class Polygon2(object):
 
 
     def clone(self):
-        return Polygon2(list(map(lambda vert: vert.clone(), self.vertices)))
+        answ = Polygon2(list(map(lambda vert: vert.clone(), self.vertices)))
+        if not self._cc is None:
+            answ._cc = self.cc 
+            answ._plz = self.plz
+            answ._plx = self.plx
+            answ._ply = self.ply
+        return answ
 
     def gettwist(self) -> PolygonTwistEnum :
         """get the overall twist of a polygon
@@ -546,6 +542,89 @@ class Polygon2(object):
         self.vertices.reverse()
         return self
 
+
+class Polygon3(object):
+    """class for polygons 3d-space (R3)
+    """
+
+    @classmethod
+    def newFromPoly2(cls, poly2 : Polygon2):
+        assert not poly2._cc is None, "Polygon3 not reconstrucatble from this polygon2"
+        cc = poly2._cc
+        plx = poly2._plx
+        ply = poly2._ply
+        verts3 = list(map(lambda v2 : Vertex3(cc + plx*v2.pos.x + ply*v2.pos.y), poly2.vertices))
+        return Polygon3(verts3)
+
+    @classmethod
+    def newFromPoly2Paras(cls, poly2: Polygon2, parapoly2 : Polygon2):
+        assert not parapoly2._cc is None, "Polygon3 not reconstrucatble from the given parameter polygon2"
+        cc = parapoly2._cc
+        plx = parapoly2._plx
+        ply = parapoly2._ply
+        verts3 = list(map(lambda v2 : Vertex3(cc + plx*v2.pos.x + ply*v2.pos.y), poly2.vertices))
+        return Polygon3(verts3)
+
+    def __init__(self, vertices):
+        self.vertices = vertices
+        self.plane = Plane3.newFromPoints(vertices[0].pos, vertices[1].pos, vertices[2].pos)
+
+    def clone(self):
+        return Polygon3(list(map(lambda vert: vert.clone(), self.vertices)))
+
+    def turnover(self):
+        self.vertices.reverse()
+        self.plane.turnover()
+        return self
+
+    def to_triangles(self):
+        """return a list of polygons (3D) describing only triangles in space
+        """
+        assert len(self.vertices) > 2, "Polygon with less than three vertices found"
+
+        if len(self.vertices)==3:
+            return [self] #we always return a list even though it only return the polygon itself 
+
+        p2 = self.get_polyinplane()
+
+        locvertices = list(map(lambda vert: [vert.pos.x, vert.pos.y], p2.vertices))
+        rings = [len(p2.vertices)]
+        vnp = np.array(locvertices).reshape(-1, 2)
+        ress = mbe.triangulate_float64(vnp, rings)
+        answ = []
+        for i in range(0,len(ress),3):
+            p3 = Polygon3.newFromPoly2Paras(Polygon2.newFromList([vnp[ress[i]], vnp[ress[i+1]], vnp[ress[i+2]]]),
+                p2) #create a poly3 from a pol2 using the projection paramaters of another poly2
+            answ.append(p3)
+
+        return answ
+
+    
+    def get_polyinplane(self) -> Polygon2:
+        """project the polygon in 2 dimensions to its own plane
+        and return the resluting 2d polygon
+        """
+        assert len(self.vertices) > 2, "Polygon with less than two vertices found"
+
+        cc = self.vertices[0].pos #centre of the considered system
+        plz = self.plane.n #z axis
+        plx = (self.vertices[1].pos - self.vertices[0].pos).unit() #x axis
+        #plz = plx.cross(self.vertices[2].pos-cc).unit()
+        ply = plz.cross(plx).unit() #y axis
+
+        vert2s = []
+        for v3 in self.vertices:
+            v3cc = v3.pos - cc
+            vert2s.append(Vertex2.newFromXY(v3cc*plx, v3cc*ply))
+            assert ma.fabs(v3cc*plz)<1e-9, "Polygon is non planar!"
+
+        answ = Polygon2(vert2s)
+        answ._cc = cc #store parameters to be able to construct the original 3d polygon out og the resulting 2 polygon
+        answ._plz = plz
+        answ._plx = plx
+        answ._ply = ply
+
+        return answ
 
 
 class BTNode(object):
@@ -585,7 +664,7 @@ class BTNode(object):
         """ 
         Recursively remove all polygons in `polygons` that are inside this tree
         """
-        if not self.plane: 
+        if not self.plane:
             return polygons[:]
 
         front = []
@@ -631,12 +710,16 @@ class BTNode(object):
         if not self.plane: 
             self.plane = polygons[0].plane.clone()
         
-        # add polygon to this node
-        self.polygons.append(polygons[0])
         front = []
         back = []
+        start = 0
+        # add polygon to this node
+        if len(self.polygons)==0:
+            self.polygons.append(polygons[0])
+            start = 1
+            
         # split all other polygons using the first polygon's plane
-        for poly in polygons[1:]:
+        for poly in polygons[start:]:
             # coplanar front and back polygons go into self.polygons
             self.plane.splitPolygon(poly, self.polygons, self.polygons,
                                     front, back)
