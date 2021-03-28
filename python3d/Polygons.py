@@ -1,3 +1,4 @@
+from sys import float_info
 import numpy as np
 from numpy.lib.polynomial import poly
 from numpy.linalg.linalg import norm
@@ -428,16 +429,37 @@ class Vertex2(object):
 
     def getbetween(self, other, t):
         return Vertex2(self.pos + (other.pos - self.pos)*t)
-
-    # def isrightoff(self, other):
-    #     """return true when other is to the right self
-    #     """
-    #     return self.pos.cross(other.pos) > 0
         
+class TangentPosEnum(Enum):
+    START = 1
+    END = 2
+    ANGLED = 3
+
+class Tangent2(object):
+    def __init__(self, pt : Vector2, ndir : Vector2, pos : TangentPosEnum):
+        self.pt = pt #the point whe the tangent starts
+        self.ndir = ndir
+        self.pos = pos #the position of the tangent related to the object it has been derived from
+
+    def get_projectedpt(self, t : float) -> Vector2:
+        return self.pt + self.ndir * t
 
 class SketchPart2(object):
     def __init__(self):
         self.points = []
+
+    def get_tangent(self, tangpos : TangentPosEnum) -> Tangent2:
+        assert len(self.points) > 1, "Irreglular line with less than 2 points found"
+
+        if tangpos is TangentPosEnum.START:
+            p1 = self.points[0]
+            p2 = self.points[1]
+        elif tangpos is TangentPosEnum.END:
+            l = len(self.points)
+            p1 = self.points[l-1]
+            p2 = self.points[l-2]
+
+        return Tangent2(p1, (p2 - p1).unit(), tangpos)
 
     def getvertices(self):
         vertices = []
@@ -446,29 +468,81 @@ class SketchPart2(object):
 
         return vertices
 
+    def get_centre(self):
+        raise NotImplementedError()
+
+    
 class Line2(SketchPart2):
     def __init__(self, *pts):
         super().__init__()
         for pt in pts:
             self.points.append(pt)
 
+    def get_centre(self):
+        ptsum = Vector2.Zero()
+        for pt in self.points:
+            ptsum += pt
+
+        return ptsum/len(self.points)
+    
 class EllipticArc2(SketchPart2):
     def __init__(self, centrept : Vector2, rv : Vector2, phi1 : float, phi2 : float, quality : int =100):
         super().__init__()
-        phis = phi1/180*ma.pi
-        phie = phi2/180*ma.pi
-        stp = 2*ma.pi/quality
-        self.points = []
-        c = centrept
-        rx = rv.x
-        ry = rv.y
-        for phi in np.arange(phis, phie + stp, stp):
-            self.points.append(c + Vector2.newFromXY(rx*ma.cos(phi), ry*ma.sin(phi)))
+        self.phis = phi1/180*ma.pi
+        self.phie = phi2/180*ma.pi
+        self.stp = 2*ma.pi/quality
+        self.quality = quality
+        self.cent = centrept
+        self.rv = rv
+        self.points = self._create_points()
+        
+    def _create_points(self):
+        pts = []
+        for phi in np.arange(self.phis, self.phie + self.stp, self.stp):
+            pts.append(self._get_pointonarc(phi))
+
+        return pts
+
+    def _get_pointonarc(self, phi):
+        return self.cent + Vector2.newFromXY(self.rv.x*ma.cos(phi), self.rv.y*ma.sin(phi))
+
+    def get_centre(self):
+        return self.cent
 
 class Ellipse2(EllipticArc2):
     def __init__(self, centrept : Vector2, rv : Vector2, quality : int =100):
-        super().__init__(centrept, rv, 0.0, 360.0, quality)
+        super().__init__(centrept, rv, 0.0, 360, quality)
+        
+    def _create_points(self):
+        pts = []
+        for i in range(self.quality):
+            phi = i*self.stp
+            pts.append(self._get_pointonarc(phi))
 
+        pts.append(pts[0].clone()) #close the circle
+
+        return pts
+
+    def get_tangent(self, phi : float) -> Tangent2:
+        """get a tangent to the ellipse2 at a specified angle
+        """
+        spt = self._get_pointonarc(phi)
+        #we need to find the nearest polygon point now
+        dist = float_info.max
+        idx = -1
+        for i in range(len(self.points)):
+            d = (spt - self.points[i]).magnitude()
+            if dist > d: 
+                dist = d
+                foundidx = i
+
+        nidx = foundidx + 1
+        if nidx >= len(self.points):
+            nidx = 0
+
+        return Tangent2(self.points[idx], (self.points[nidx] - self.points[idx]).unit(), TangentPosEnum.ANGLED)
+        
+        
 
 class PolygonTwistEnum(Enum):
     CLKWISE=1
@@ -481,7 +555,7 @@ class Polygon2(object):
     """
     def __init__(self, vertices):
         self.vertices = vertices # vertices are expected as Vertex2
-        self._cc = None #paraamters to project the 2d polygon back into 3d space in case it was constructed from a 3d polygon
+        self._cc = None #parameters to project the 2d polygon back into 3d space in case it was constructed from a 3d polygon
         self._plz = None
         self._plx = None
         self._ply = None

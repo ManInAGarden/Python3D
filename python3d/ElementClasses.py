@@ -153,6 +153,9 @@ class BasicElement:
     def clone(self):
         return BasicElement(self._cent.x, self._cent.x, self._cent.z)
 
+    def get_centre(self):
+        return self._cent
+
 
 class _DimensionedElement(BasicElement):
     def __init__(self, centx=0.0, centy=0.0, centz=0.0, xdim=1.0, ydim=1.0, zdim=1.0):

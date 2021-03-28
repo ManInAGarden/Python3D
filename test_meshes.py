@@ -1,3 +1,4 @@
+from python3d.Polygons import EllipticArc2, Line2, TangentPosEnum, Vector2
 from python3d.Bodies import BodyOperationEnum
 from TestBaseMeshes import TestBaseMeshes
 import numpy
@@ -239,6 +240,27 @@ class ElementTest(TestBaseMeshes):
         
         m = pd.Mesh(body)
         m.name = "test_sketched_framestar"
+        self.write_stl(m)
+
+    def test_sketched_drop(self):
+        arc = pd.EllipticArc2(Vector2.Zero(), Vector2.newFromXY(10, 10), -(90 + 45), 90 + 45, 30)
+        ts = arc.get_tangent(TangentPosEnum.START)
+        te = arc.get_tangent(TangentPosEnum.END)
+
+        hole = pd.Ellipse2(arc.get_centre(), Vector2.newFromXY(3,3), 30)
+
+        corne = te.get_projectedpt(-4) #projected outwards of the arc, negative t
+        corns = ts.get_projectedpt(-4)
+
+        line = pd.Line2(te.pt, corne, corns, ts.pt)
+        skel = pd.LineExtrudedElement(extrup=10)
+
+        skel.add_poly(pd.Polygon2.newFromSketch(arc, line))
+        skel.add_poly(pd.Polygon2.newFromSketch(hole))
+        body = pd.Body().addelement(skel)
+        
+        m = pd.Mesh(body)
+        m.name = "test_sketched_drop"
         self.write_stl(m)
 
     def _get_box_sketch(self, c1, c2, c3, c4, arcr):
