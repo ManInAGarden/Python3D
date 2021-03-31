@@ -1,4 +1,5 @@
-from python3d.Polygons import EllipticArc2, Line2, TangentPosEnum, Vector2
+from python3d.ElementClasses import EllipsoidElement
+from python3d.Polygons import Ellipse2, EllipticArc2, Line2, TangentPosEnum, Vector2
 from python3d.Bodies import BodyOperationEnum
 from TestBaseMeshes import TestBaseMeshes
 import numpy
@@ -261,6 +262,39 @@ class ElementTest(TestBaseMeshes):
         
         m = pd.Mesh(body)
         m.name = "test_sketched_drop"
+        self.write_stl(m)
+
+    def test_zigzag(self):
+        lin = Line2(Vector2.Zero(), Vector2.newFromXY(0.0,10.0))
+
+        for i in range(2,5):
+            iseven = i % 2 == 0
+            if not iseven:
+                lin.add_point_byangle(100, 5)
+            else:
+                lin.add_point_byangle(80, 5)
+
+        lin.add_point_byangle(180, 10.0)
+
+        for i in range(2,5):
+            iseven = i % 2 == 0
+            if not iseven:
+                lastpt = lin.add_point_byangle(280, 5)
+            else:
+                lastpt = lin.add_point_byangle(260, 5)
+        lin.add_point(Vector2.newFromXY(-10.0,0.0))
+
+        lin.close_line()
+
+        bohrung = Ellipse2(Vector2.newFromXY(-5,10), Vector2.newFromXY(2,2), 20)
+        skel = pd.LineExtrudedElement(extrup=10)
+
+        skel.add_poly(pd.Polygon2.newFromSketch(lin))
+        skel.add_poly(pd.Polygon2.newFromSketch(bohrung))
+        body = pd.Body().addelement(skel)
+        
+        m = pd.Mesh(body)
+        m.name = "test_zigzag"
         self.write_stl(m)
 
     def _get_box_sketch(self, c1, c2, c3, c4, arcr):

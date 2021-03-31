@@ -473,6 +473,8 @@ class SketchPart2(object):
 
     
 class Line2(SketchPart2):
+    """a polygon for sketching in 2d
+    """
     def __init__(self, *pts):
         super().__init__()
         for pt in pts:
@@ -484,6 +486,34 @@ class Line2(SketchPart2):
             ptsum += pt
 
         return ptsum/len(self.points)
+
+    def add_point_bydir(self, dir : Vector2, len : float) -> Vector2:
+        """add a point to the end of the line in direction
+
+            returns the added point for more convenience in subsequent calculations
+        """
+        pt = dir*len + self.points[-1]
+        self.points.append(pt)
+        return pt
+
+    def add_point_byangle(self, angdeg : float, len : float) -> Vector2:
+        """add a point to the end of the line in direction given by the supplied angle
+
+           returns the added point for more convenience in subsequent calculations
+        """
+        angrad = angdeg/180*ma.pi
+        pt = Vector2.newFromXY(len*ma.cos(angrad), len*ma.sin(angrad)) + self.points[-1]
+        self.points.append(pt)
+        return pt
+
+    def add_point(self, pt : Vector2) -> Vector2:
+        self.points.append(pt)
+        return pt
+
+    def close_line(self):
+        self.points.append(self.points[0].clone())
+        return self.points[-1]
+        
     
 class EllipticArc2(SketchPart2):
     def __init__(self, centrept : Vector2, rv : Vector2, phi1 : float, phi2 : float, quality : int =100):
