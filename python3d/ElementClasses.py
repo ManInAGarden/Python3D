@@ -23,7 +23,7 @@ class Transformer():
         return (self._tmat == other._tmat).all()
 
     def __add__(self, other):
-        """adding transformations is interpreted as applying the tow transformations left to right resulting
+        """adding transformations is interpreted as applying the two transformations left to right resulting
         in a new transformation
         """
         return self.clone().addtrans(other._tmat)
@@ -321,6 +321,8 @@ class _SketchedElement(_LateTransformElement):
         if twist is PolygonTwistEnum.CLKWISE:
             poly.turnover()
         self._polygons.append(poly)
+
+        return self
 
     def _clone_polygons(self):
         return list(map(lambda poly : poly.clone(), self._polygons))

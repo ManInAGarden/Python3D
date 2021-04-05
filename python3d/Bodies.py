@@ -60,6 +60,8 @@ class Body(object):
         return iter(self._elements)
 
     def addelement(self, bel : BasicElement, operation : BodyOperationEnum = BodyOperationEnum.UNION, quality=100):
+        assert not bel is None, "Error trying to add 'None' element to a body!"
+        
         pelement = BodyElement(bel, operation, quality=quality)
         self._elements.append(pelement)
         return self

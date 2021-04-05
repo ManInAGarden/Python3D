@@ -1,5 +1,5 @@
-from python3d.ElementClasses import EllipsoidElement
-from python3d.Polygons import Ellipse2, EllipticArc2, Line2, TangentPosEnum, Vector2
+from python3d.ElementClasses import EllipsoidElement, RotateExtrudedElement
+from python3d.Polygons import Ellipse2, EllipticArc2, Line2, Polygon3, TangentPosEnum, Vector2
 from python3d.Bodies import BodyOperationEnum
 from TestBaseMeshes import TestBaseMeshes
 import numpy
@@ -297,6 +297,45 @@ class ElementTest(TestBaseMeshes):
         m.name = "test_zigzag"
         self.write_stl(m)
 
+    def test_bezier(self):
+        ctrlpts = [pd.Vector2.newFromXY(0,0),
+            pd.Vector2.newFromXY(0.0, 10.0),
+            pd.Vector2.newFromXY(10.0, 10.0),
+            pd.Vector2.newFromXY(10.0, 0.0)]
+
+        ctrlpts.reverse()
+
+        bez = pd.Bezier2(ctrlpts, 30)
+        clin = Line2(pd.Vector2.Zero(), pd.Vector2.newFromXY(10.0, 0.0))
+        poly = Polygon2.newFromSketch(bez, clin)
+        skel = pd.LineExtrudedElement(extrup=20)
+        skel.add_poly(poly)
+        body = pd.Body().addelement(skel)
+
+        m = pd.Mesh(body)
+        m.name = "test_bezier"
+        self.write_stl(m)
+
+    def test_rotate_extrude_doughnut(self):
+        elli = pd.Ellipse2(pd.Vector2.newFromXY(40.0, 0.0), pd.Vector2.newFromXY(10.0, 10.0), quality=30)
+        rotex = pd.RotateExtrudedElement().add_poly(pd.Polygon2.newFromSketch(elli))
+        rotex = rotex.rotate(pd.AxisEnum.XAXIS, 45)
+        body = pd.Body().addelement(rotex, quality=30)
+        
+        m = pd.Mesh(body)
+        m.name = "test_rotate_extrude_doughnut"
+        self.write_stl(m)
+
+    def test_rotate_extrude_vase(self):
+        vp = self.create_vase_polygon()
+        rotex = pd.RotateExtrudedElement()
+        rotex.add_poly(vp)
+        body = pd.Body().addelement(rotex, quality=30)
+        
+        m = pd.Mesh(body)
+        m.name = "test_rotate_extrude_vase"
+        self.write_stl(m)
+
     def _get_box_sketch(self, c1, c2, c3, c4, arcr):
         corner1 = pd.Vector2.newFromList(c1)
         corner2 = pd.Vector2.newFromList(c2)
@@ -324,6 +363,9 @@ class ElementTest(TestBaseMeshes):
         sketch.add_poly(pd.Polygon2.newFromSketch(arc))
 
 if __name__ == "__main__":
-    unittest.main()
+    tc = ElementTest()
+    tc.test_rotate_extrude_vase()
+
+    # unittest.main()
 
 

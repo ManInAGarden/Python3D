@@ -572,7 +572,50 @@ class Ellipse2(EllipticArc2):
 
         return Tangent2(self.points[idx], (self.points[nidx] - self.points[idx]).unit(), TangentPosEnum.ANGLED)
         
-        
+class Bezier2(SketchPart2):
+    def __init__(self, ctrlpts, quality : int =100):
+        super().__init__()
+        self.ctrlpoints = ctrlpts
+        self.quality = quality
+        self.points = self._create_points()
+
+    def _create_points(self):
+        answ = [self.ctrlpoints[0]]
+        q = self.quality - 1
+        stp = 1/q
+        t = stp
+        for i in range(1, q):
+            t = i*stp
+            answ.append(self._casteljau(self.ctrlpoints, t))
+
+        answ.append(self.ctrlpoints[-1])
+        return answ
+
+    def _casteljau(self, inp, t):
+        i = 0
+        s = []
+        l = len(inp)
+        if l==0: return None
+        if l==1: return inp[0]
+        assert t>=0.0 and t<=1.0, "t must be in the interval [0,1]"
+
+        while i < l:
+            if i+1 < l:
+                s.append(inp[i]*(1.0-t) + inp[i+1]*t)
+
+            i += 1
+
+        if l >= 2:
+            return self._casteljau(s, t)
+
+    def get_tangent(self, tangpos: TangentPosEnum) -> Tangent2:
+        if tangpos is TangentPosEnum.START:
+            return Tangent2(self.points[0], (self.ctrlpoints[1]-self.ctrlpoints[0]).unit(), tangpos)
+        elif tangpos is TangentPosEnum.END:
+            return Tangent2(self.points[-1], (self.ctrlpoints[-2]-self.ctrlpoints[-1]).unit(), tangpos)
+        else:
+            raise Exception("Unknown tangent position {} in get_tangent of Bezier2".format(tangpos))
+
 
 class PolygonTwistEnum(Enum):
     CLKWISE=1
@@ -596,7 +639,11 @@ class Polygon2(object):
         """
         vertices = []
         for part in parts:
-            vertices.extend(part.getvertices())
+            subvertices = part.getvertices()
+            if len(vertices)>0 and vertices[-1]==subvertices[0]: subvertices = subvertices[1:]
+
+            vertices.extend(subvertices)
+
 
         return Polygon2(vertices)
 
@@ -658,6 +705,11 @@ class Polygon3(object):
         plx = poly2._plx
         ply = poly2._ply
         verts3 = list(map(lambda v2 : Vertex3(cc + plx*v2.pos.x + ply*v2.pos.y), poly2.vertices))
+        return Polygon3(verts3)
+
+    @classmethod
+    def newFromPoly2inZZero(cls, poly2 : Polygon2):
+        verts3 = list(map(lambda v2 : Vertex3.newFromXYZ(v2.pos.x,v2.pos.y, 0.0), poly2.vertices))
         return Polygon3(verts3)
 
     @classmethod

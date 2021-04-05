@@ -56,8 +56,94 @@ class Mesh(object):
             return self._create_cylindermesh(ele, quality)
         elif tele is LineExtrudedElement:
             return self._create_linexmesh(ele, quality)
+        elif tele is RotateExtrudedElement:
+            return self._create_rotexmesh(ele, quality)
         else:
             raise Exception("Unknonw element type <{}> in _create_mesh".format(tele.__name__))
+
+    def _create_rotexmesh(self, rotel : RotateExtrudedElement, quality):
+        polygons = []
+        tr = rotel._transf
+        
+        if ma.fabs(rotel._startangle - rotel._stopangle) < 1e-9:
+            dofull = False
+        else:
+            dofull = True
+
+        trb = Transformer().translateinit(rotel._cent.x, rotel._cent.y, rotel._cent.z) + rotel._transf
+
+        c3pols = self._get_contur3d(rotel) #get the contur polygons as 3d for z=0
+        stp = (rotel._stopangle - rotel._startangle)/quality
+        preconturs = None
+        firstconturs = None
+        for i in range(quality):
+            phi = i * stp + rotel._startangle
+            conturs = self._get_transconturs(trb, c3pols, phi)
+            if firstconturs is None:
+                firstconturs = conturs
+            if not preconturs is None:
+                for j in range(len(conturs)):
+                    for k in range(len(conturs[j].vertices) - 1):
+                        v1 = preconturs[j].vertices[k]
+                        v2 = preconturs[j].vertices[k+1]
+                        v3 = conturs[j].vertices[k+1]
+                        self._append_if_ok(polygons, v1, v2, v3)
+                        v1 = conturs[j].vertices[k+1]
+                        v2 = conturs[j].vertices[k]
+                        v3 = preconturs[j].vertices[k]
+                        self._append_if_ok(polygons, v1, v2, v3)
+
+            preconturs = conturs
+
+        #now exactly close the conturs
+        for j in range(len(conturs)):
+            for k in range(len(conturs[j].vertices) - 1):
+                v1 = conturs[j].vertices[k]
+                v2 = conturs[j].vertices[k+1]
+                v3 = firstconturs[j].vertices[k+1]
+                self._append_if_ok(polygons, v1, v2, v3)
+                v1 = firstconturs[j].vertices[k+1]
+                v2 = firstconturs[j].vertices[k]
+                v3 = conturs[j].vertices[k]
+                self._append_if_ok(polygons, v1, v2, v3)
+
+        answ = Mesh()
+        answ.btsource = BTNode(polygons)
+        return answ
+
+    def _append_if_ok(self, polys : list, v1 : Vertex3, v2 : Vertex3, v3 : Vertex3):
+        """create a polygon out of the given three vercices if they really describe a triangle
+        and append that polygon to the supplied list of polygons
+        """
+        if v1 != v2 and v2 != v3 and v3 != v1:
+            polys.append(Polygon3([v1, v2, v3]))
+
+    def _get_contur3d(self, rotel : RotateExtrudedElement) -> list:
+        answ = []
+
+        for p2 in rotel._polygons:
+            verts3 = list(map(lambda vert2: Vertex3.newFromXYZ(vert2.pos.x, vert2.pos.y, 0.0), p2.vertices))
+            verts3clean = []
+            for i in range(len(verts3)-1):
+                if not (verts3[i].pos.x==0 and verts3[i+1].pos.x == 0): #when both x und z of tow conecutive positions are zero, we have a connection via the y axis! #remeber z is always zero here!
+                    verts3clean.append(verts3[i])
+
+            if verts3clean[0].pos.x==0 and verts3clean[-1].pos.x == 0: #also chack the connection from beginning to end
+                verts3clean = verts3clean[:-1]
+
+            answ.append(Polygon3(verts3clean))
+            
+        return answ
+
+    
+    def _get_transconturs(self, trb : Transformer, pols : list, angle : float):
+        answ = []
+        mytr = Transformer().yrotinit(angle) + trb
+        for pol in pols:
+            newverts = list(map(lambda vert : Vertex3(mytr.transform(vert.pos)), pol.vertices))
+            answ.append(Polygon3(newverts))
+
+        return answ
 
     def _create_linexmesh(self, skel : LineExtrudedElement, quality):
         polygons = []
