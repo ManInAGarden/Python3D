@@ -1,4 +1,5 @@
-from python3d.ElementClasses import EllipsoidElement, RotateExtrudedElement
+from sys import setrecursionlimit
+from python3d.ElementClasses import AxisEnum, EllipsoidElement, RotateExtrudedElement
 from python3d.Polygons import Ellipse2, EllipticArc2, Line2, Polygon3, TangentPosEnum, Vector2
 from python3d.Bodies import BodyOperationEnum
 from TestBaseMeshes import TestBaseMeshes
@@ -330,7 +331,11 @@ class ElementTest(TestBaseMeshes):
         vp = self.create_vase_polygon()
         rotex = pd.RotateExtrudedElement()
         rotex.add_poly(vp)
+        rotexin = rotex.scale(0.9, 0.9, 0.9).translate(0.0, 2.5, 0.0)
+        cyl = pd.CylinderElement(rx=18, ry=18, l=5).rotate(AxisEnum.XAXIS, 90).translate(0,50,0)
         body = pd.Body().addelement(rotex, quality=30)
+        body.addelement(rotexin, BodyOperationEnum.DIFFERENCE, quality=30)
+        body.addelement(cyl, BodyOperationEnum.DIFFERENCE, quality=30)
         
         m = pd.Mesh(body)
         m.name = "test_rotate_extrude_vase"
@@ -363,6 +368,7 @@ class ElementTest(TestBaseMeshes):
         sketch.add_poly(pd.Polygon2.newFromSketch(arc))
 
 if __name__ == "__main__":
+    setrecursionlimit(5000)
     tc = ElementTest()
     tc.test_rotate_extrude_vase()
 

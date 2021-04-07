@@ -84,13 +84,13 @@ class Mesh(object):
             if not preconturs is None:
                 for j in range(len(conturs)):
                     for k in range(len(conturs[j].vertices) - 1):
-                        v1 = preconturs[j].vertices[k]
-                        v2 = preconturs[j].vertices[k+1]
-                        v3 = conturs[j].vertices[k+1]
+                        v1 = preconturs[j].vertices[k+1]
+                        v2 = preconturs[j].vertices[k]
+                        v3 = conturs[j].vertices[k]
                         self._append_if_ok(polygons, v1, v2, v3)
-                        v1 = conturs[j].vertices[k+1]
-                        v2 = conturs[j].vertices[k]
-                        v3 = preconturs[j].vertices[k]
+                        v1 = conturs[j].vertices[k]
+                        v2 = conturs[j].vertices[k+1]
+                        v3 = preconturs[j].vertices[k+1]
                         self._append_if_ok(polygons, v1, v2, v3)
 
             preconturs = conturs
@@ -98,17 +98,18 @@ class Mesh(object):
         #now exactly close the conturs
         for j in range(len(conturs)):
             for k in range(len(conturs[j].vertices) - 1):
-                v1 = conturs[j].vertices[k]
-                v2 = conturs[j].vertices[k+1]
-                v3 = firstconturs[j].vertices[k+1]
+                v1 = conturs[j].vertices[k+1]
+                v2 = conturs[j].vertices[k]
+                v3 = firstconturs[j].vertices[k]
                 self._append_if_ok(polygons, v1, v2, v3)
-                v1 = firstconturs[j].vertices[k+1]
-                v2 = firstconturs[j].vertices[k]
-                v3 = conturs[j].vertices[k]
+                v1 = firstconturs[j].vertices[k]
+                v2 = firstconturs[j].vertices[k+1]
+                v3 = conturs[j].vertices[k+1]
                 self._append_if_ok(polygons, v1, v2, v3)
 
         answ = Mesh()
         answ.btsource = BTNode(polygons)
+        
         return answ
 
     def _append_if_ok(self, polys : list, v1 : Vertex3, v2 : Vertex3, v3 : Vertex3):
@@ -123,12 +124,12 @@ class Mesh(object):
 
         for p2 in rotel._polygons:
             verts3 = list(map(lambda vert2: Vertex3.newFromXYZ(vert2.pos.x, vert2.pos.y, 0.0), p2.vertices))
-            verts3clean = []
-            for i in range(len(verts3)-1):
-                if not (verts3[i].pos.x==0 and verts3[i+1].pos.x == 0): #when both x und z of tow conecutive positions are zero, we have a connection via the y axis! #remeber z is always zero here!
+            verts3clean = [verts3[0]]
+            for i in range(1, len(verts3)):
+                if not (verts3[i-1].pos.x==0 and verts3[i].pos.x == 0): #when both x und z of tow consecutive positions are zero, we have a connection via the y axis! #remeber z is always zero here!
                     verts3clean.append(verts3[i])
 
-            if verts3clean[0].pos.x==0 and verts3clean[-1].pos.x == 0: #also chack the connection from beginning to end
+            if verts3clean[0] == verts3clean[-1]:
                 verts3clean = verts3clean[:-1]
 
             answ.append(Polygon3(verts3clean))

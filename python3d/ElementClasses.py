@@ -232,6 +232,7 @@ class _LateTransformElement(BasicElement):
         self._transf = Transformer().scaleinit(1,1,1) #neutral transformation
 
     def scale(self, sx: float = 1.0, sy: float = 1.0, sz: float = 1.0):
+        assert sx!=0.0 and sy!=0.0 and sz != 0.0, "scaling to zero is not allowed in _LateTransformElement.scale()"
         answ = self.clone()
 
         tr = Transformer().scaleinit(sx, sy, sz)
