@@ -270,9 +270,9 @@ class Plane3(object):
                     f.append(v)
                     b.append(v.clone())
             if len(f) >= 3: 
-                front.append(Polygon3(f))
+                front.append(Polygon3.newFromVertices(f))
             if len(b) >= 3: 
-                back.append(Polygon3(b))
+                back.append(Polygon3.newFromVertices(b))
 
 
 
@@ -704,13 +704,12 @@ class Polygon3(object):
         cc = poly2._cc
         plx = poly2._plx
         ply = poly2._ply
-        verts3 = list(map(lambda v2 : Vertex3(cc + plx*v2.pos.x + ply*v2.pos.y), poly2.vertices))
-        return Polygon3(verts3)
+        return Polygon3.newFromVertices(list(map(lambda v2 : Vertex3(cc + plx*v2.pos.x + ply*v2.pos.y), poly2.vertices)))
 
     @classmethod
     def newFromPoly2inZZero(cls, poly2 : Polygon2):
         verts3 = list(map(lambda v2 : Vertex3.newFromXYZ(v2.pos.x,v2.pos.y, 0.0), poly2.vertices))
-        return Polygon3(verts3)
+        return Polygon3.newFromVertices(verts3)
 
     @classmethod
     def newFromPoly2Paras(cls, poly2: Polygon2, parapoly2 : Polygon2):
@@ -718,15 +717,20 @@ class Polygon3(object):
         cc = parapoly2._cc
         plx = parapoly2._plx
         ply = parapoly2._ply
-        verts3 = list(map(lambda v2 : Vertex3(cc + plx*v2.pos.x + ply*v2.pos.y), poly2.vertices))
-        return Polygon3(verts3)
+        return Polygon3.newFromVertices(list(map(lambda v2 : Vertex3(cc + plx*v2.pos.x + ply*v2.pos.y), poly2.vertices)))
 
-    def __init__(self, vertices):
-        self.vertices = vertices
-        self.plane = Plane3.newFromPoints(vertices[0].pos, vertices[1].pos, vertices[2].pos)
+    @classmethod
+    def newFromVertices(cls, vertices : list):
+        answ = Polygon3()
+        answ.vertices = vertices
+        answ.plane = Plane3.newFromPoints(vertices[0].pos, vertices[1].pos, vertices[2].pos)
+        return answ
 
     def clone(self):
-        return Polygon3(list(map(lambda vert: vert.clone(), self.vertices)))
+        answ = Polygon3()
+        answ.vertices = list(map(lambda vert: vert.clone(), self.vertices))
+        answ.plane = self.plane
+        return answ
 
     def turnover(self):
         self.vertices.reverse()

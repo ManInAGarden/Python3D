@@ -67,7 +67,7 @@ class Transformer():
             answ = np.dot(self._tmat, ivec)
             avertices.append(Vertex3.newFromXYZ(answ[0], answ[1], answ[2]))
 
-        return Polygon3(avertices)
+        return Polygon3.newFromVertices(avertices)
 
     def scaleinit(self, sx, sy, sz):
         tmat = np.array([

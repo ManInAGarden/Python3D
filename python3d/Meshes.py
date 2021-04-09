@@ -65,10 +65,10 @@ class Mesh(object):
         polygons = []
         tr = rotel._transf
         
-        if ma.fabs(rotel._startangle - rotel._stopangle) < 1e-9:
-            dofull = False
-        else:
+        if ma.fabs(rotel._stopangle - rotel._startangle) % 360.0 < 1e-9:
             dofull = True
+        else:
+            dofull = False
 
         trb = Transformer().translateinit(rotel._cent.x, rotel._cent.y, rotel._cent.z) + rotel._transf
 
@@ -76,7 +76,12 @@ class Mesh(object):
         stp = (rotel._stopangle - rotel._startangle)/quality
         preconturs = None
         firstconturs = None
-        for i in range(quality):
+        if dofull: 
+            max = quality 
+        else: 
+            max = quality + 1
+
+        for i in range(max):
             phi = i * stp + rotel._startangle
             conturs = self._get_transconturs(trb, c3pols, phi)
             if firstconturs is None:
@@ -96,43 +101,62 @@ class Mesh(object):
             preconturs = conturs
 
         #now exactly close the conturs
-        for j in range(len(conturs)):
-            for k in range(len(conturs[j].vertices) - 1):
-                v1 = conturs[j].vertices[k+1]
-                v2 = conturs[j].vertices[k]
-                v3 = firstconturs[j].vertices[k]
-                self._append_if_ok(polygons, v1, v2, v3)
-                v1 = firstconturs[j].vertices[k]
-                v2 = firstconturs[j].vertices[k+1]
-                v3 = conturs[j].vertices[k+1]
-                self._append_if_ok(polygons, v1, v2, v3)
+        if dofull:
+            for j in range(len(conturs)):
+                for k in range(len(conturs[j].vertices) - 1):
+                    v1 = conturs[j].vertices[k+1]
+                    v2 = conturs[j].vertices[k]
+                    v3 = firstconturs[j].vertices[k]
+                    self._append_if_ok(polygons, v1, v2, v3)
+                    v1 = firstconturs[j].vertices[k]
+                    v2 = firstconturs[j].vertices[k+1]
+                    v3 = conturs[j].vertices[k+1]
+                    self._append_if_ok(polygons, v1, v2, v3)
+        else: #we have to produce a front and a back closing part
+            startlid = self._get_rota_lid(trb, rotel._polygons, rotel._startangle)
+            endlid = self._get_rota_lid(trb, rotel._polygons, rotel._stopangle)
+            polygons.extend(startlid)
+            polygons.extend(list(map(lambda p: p.turnover(), endlid)))
 
         answ = Mesh()
         answ.btsource = BTNode(polygons)
         
         return answ
 
+    def _get_rota_lid(self, trb : Transformer, polygons : list, phi : float) -> list:
+        assert len(polygons)>0, "No polygons at all as argument to _get_start_lid is not OK"
+        assert type(polygons[0]) is Polygon2, "Polygons for _get_start_lid must be Polygon2!!!. Got {} instead".format(type(polygons[0]).__name__)
+        pol2s = self._create_flatsketch_mesh(polygons)
+        rotr = Transformer().yrotinit(phi)
+        rotr += trb
+
+        return list(map(lambda pol2: rotr.transform(Polygon3.newFromPoly2inZZero(pol2)), pol2s))
+
     def _append_if_ok(self, polys : list, v1 : Vertex3, v2 : Vertex3, v3 : Vertex3):
         """create a polygon out of the given three vercices if they really describe a triangle
         and append that polygon to the supplied list of polygons
         """
         if v1 != v2 and v2 != v3 and v3 != v1:
-            polys.append(Polygon3([v1, v2, v3]))
+            polys.append(Polygon3.newFromVertices([v1, v2, v3]))
 
     def _get_contur3d(self, rotel : RotateExtrudedElement) -> list:
         answ = []
 
+        first = True
         for p2 in rotel._polygons:
             verts3 = list(map(lambda vert2: Vertex3.newFromXYZ(vert2.pos.x, vert2.pos.y, 0.0), p2.vertices))
             verts3clean = [verts3[0]]
             for i in range(1, len(verts3)):
-                if not (verts3[i-1].pos.x==0 and verts3[i].pos.x == 0): #when both x und z of tow consecutive positions are zero, we have a connection via the y axis! #remeber z is always zero here!
+                if not (verts3[i-1].pos.x==0 and verts3[i].pos.x == 0): #when both x und z of two consecutive positions are zero, we have a connection via the y axis! #remember z is always zero here!
                     verts3clean.append(verts3[i])
 
-            if verts3clean[0] == verts3clean[-1]:
-                verts3clean = verts3clean[:-1]
+            if first:
+                first = False
+            else:
+                verts3clean.reverse()
 
-            answ.append(Polygon3(verts3clean))
+            answ.append(Polygon3.newFromVertices(verts3clean))
+            
             
         return answ
 
@@ -142,7 +166,7 @@ class Mesh(object):
         mytr = Transformer().yrotinit(angle) + trb
         for pol in pols:
             newverts = list(map(lambda vert : Vertex3(mytr.transform(vert.pos)), pol.vertices))
-            answ.append(Polygon3(newverts))
+            answ.append(Polygon3.newFromVertices(newverts))
 
         return answ
 
@@ -182,11 +206,11 @@ class Mesh(object):
                         continue
                     
                     if innerpoly:
-                        polygons.append(Polygon3([vcurrtop, vcurrbot, voldbot]))
-                        polygons.append(Polygon3([ voldtop, vcurrtop, voldbot]))
+                        polygons.append(Polygon3.newFromVertices([vcurrtop, vcurrbot, voldbot]))
+                        polygons.append(Polygon3.newFromVertices([ voldtop, vcurrtop, voldbot]))
                     else:
-                        polygons.append(Polygon3([voldbot, vcurrbot, vcurrtop]))
-                        polygons.append(Polygon3([voldbot, vcurrtop, voldtop]))
+                        polygons.append(Polygon3.newFromVertices([voldbot, vcurrbot, vcurrtop]))
+                        polygons.append(Polygon3.newFromVertices([voldbot, vcurrtop, voldtop]))
 
                 voldbot = vcurrbot
                 voldtop = vcurrtop
@@ -210,7 +234,7 @@ class Mesh(object):
             v3t = tr.transform(v3 + addvect)
             vertices3.append(Vertex3.newFromXYZ(v3t.x, v3t.y, v3t.z))
 
-        return Polygon3(vertices3)
+        return Polygon3.newFromVertices(vertices3)
 
 
     def _create_flatsketch_mesh(self, polygons):
@@ -272,15 +296,15 @@ class Mesh(object):
                 rightcurrent = currentcirc[i+1]
 
                 if leftformer != rightformer:
-                    polygons.append(Polygon3([Vertex3(leftcurrent), Vertex3(leftformer), Vertex3(rightformer)]))
+                    polygons.append(Polygon3.newFromVertices([Vertex3(leftcurrent), Vertex3(leftformer), Vertex3(rightformer)]))
                 if rightcurrent != leftcurrent:
-                    polygons.append(Polygon3([Vertex3(rightcurrent), Vertex3(leftcurrent),  Vertex3(rightformer)]))
+                    polygons.append(Polygon3.newFromVertices([Vertex3(rightcurrent), Vertex3(leftcurrent),  Vertex3(rightformer)]))
 
         for i in range(len(formercirc)-1):
             rightcurrent = leftcurrent = toppt
             leftformer = currentcirc[i]
             rightformer = currentcirc[i+1]
-            polygons.append(Polygon3([Vertex3(leftcurrent), Vertex3(leftformer), Vertex3(rightformer)]))
+            polygons.append(Polygon3.newFromVertices([Vertex3(leftcurrent), Vertex3(leftformer), Vertex3(rightformer)]))
 
         answ = Mesh()
         answ.btsource = BTNode(polygons)
@@ -324,8 +348,8 @@ class Mesh(object):
                 rightlower = Vertex3(pts_lower[i+1])
                 leftupper = Vertex3(pts_upper[i])
                 rightupper = Vertex3(pts_upper[i+1])
-                polygons.append(Polygon3([leftlower, leftupper, rightupper]))
-                polygons.append(Polygon3([rightupper, rightlower, leftlower]))
+                polygons.append(Polygon3.newFromVertices([leftlower, leftupper, rightupper]))
+                polygons.append(Polygon3.newFromVertices([rightupper, rightlower, leftlower]))
 
         #bottom
         botpolys = self._create_circle_mesh(cyl._cent - (Vector3.Zdir() * cyl._l * 0.5), rx, ry, quality)
@@ -365,11 +389,11 @@ class Mesh(object):
                 firstpt = pt
 
             if not oldpt is None:
-                poly = Polygon3([cvert, Vertex3(pt), Vertex3(oldpt)])
+                poly = Polygon3.newFromVertices([cvert, Vertex3(pt), Vertex3(oldpt)])
                 polygons.append(poly)
             oldpt = pt
 
-        polygons.append(Polygon3([cvert, Vertex3(firstpt), Vertex3(oldpt)])) #close the circle
+        polygons.append(Polygon3.newFromVertices([cvert, Vertex3(firstpt), Vertex3(oldpt)])) #close the circle
 
         return polygons
 
@@ -413,8 +437,7 @@ class Mesh(object):
 
     def _get_polygon(self, *pts):
         assert len(pts)>2, "get_polygon needs at least three points to produce a valid polygon"
-        vertices = list(map(Vertex3, pts))
-        return Polygon3(vertices)
+        return Polygon3.newFromVertices(list(map(Vertex3, pts)))
 
     def _mergemesh(self, mmesh, operation : BodyOperationEnum):
         if self.btsource is None:
@@ -472,8 +495,6 @@ class Mesh(object):
         a.addtree(b)
         a.invert()
         self.btsource = a
-
-        
 
 
 class StlModeEnum(Enum):

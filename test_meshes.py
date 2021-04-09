@@ -341,6 +341,17 @@ class ElementTest(TestBaseMeshes):
         m.name = "test_rotate_extrude_vase"
         self.write_stl(m)
 
+    def test_rotate_extrude_withholes(self):
+        ellout = pd.Ellipse2(pd.Vector2.newFromXY(40.0, 0.0), pd.Vector2.newFromXY(10.0, 10.0), quality=30)
+        ellin = pd.Ellipse2(pd.Vector2.newFromXY(40.0, 0.0), pd.Vector2.newFromXY(8.0, 8.0), quality=30)
+        rotex = pd.RotateExtrudedElement(stopangle=180).add_poly(pd.Polygon2.newFromSketch(ellout)).add_poly(pd.Polygon2.newFromSketch(ellin))
+        body = pd.Body().addelement(rotex, quality=30)
+        
+        m = pd.Mesh(body)
+        m.name = "test_rotate_extrude_withholes"
+        self.write_stl(m)
+
+
     def _get_box_sketch(self, c1, c2, c3, c4, arcr):
         corner1 = pd.Vector2.newFromList(c1)
         corner2 = pd.Vector2.newFromList(c2)
@@ -369,9 +380,9 @@ class ElementTest(TestBaseMeshes):
 
 if __name__ == "__main__":
     setrecursionlimit(5000)
-    tc = ElementTest()
-    tc.test_rotate_extrude_vase()
+    # tc = ElementTest()
+    # tc.test_rotate_extrude_withholes()
 
-    # unittest.main()
+    unittest.main()
 
 
