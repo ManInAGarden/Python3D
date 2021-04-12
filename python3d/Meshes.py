@@ -339,7 +339,7 @@ class Mesh(object):
             pts_lower.append(tr.transform(Vector3.newFromXYZ(xpt, ypt, zpt)))
             pts_upper.append(tr.transform(Vector3.newFromXYZ(xpt, ypt, zpt + l)))
 
-        #close the fullcircle exactly - more secure than doing the loop to i<(quality+1)
+        #exactly close the fullcircle - more accurate than doing the loop to i<(quality+1)
         pts_lower.append(tr.transform(Vector3.newFromXYZ(firstxpt, firstypt, zpt)))
         pts_upper.append(tr.transform(Vector3.newFromXYZ(firstxpt, firstypt, zpt + l)))
 
@@ -496,7 +496,39 @@ class Mesh(object):
         a.invert()
         self.btsource = a
 
+    def transform(self, tr : Transformer):
+        """apply a transformation to the polygons of this mesh
+        """
+        answ = self.clone()
+        self._transnode(answ.btsource, tr)
+        return answ
 
+    def _transnode(self, btn : BTNode, tr : Transformer):
+        """recursivly transform the polygons in a node"""
+        btn.polygons = list(map(tr.transform, btn.polygons))
+        if btn.front is not None:
+            self._transnode(btn.front, tr)
+        if btn.back is not None:
+            self._transnode(btn.back, tr)
+
+    def checkforconsistentrianglemesh(self):
+        """check the mesh if it consists only of triangles
+        """
+        faulties = []
+        self._checkforfaulties(self.btsource, faulties)
+        return faulties
+
+    def _checkforfaulties(self, bnode : BTNode, faulties : list):
+        for pol in bnode.polygons:
+            if pol.vertices is None or len(pol.vertices) != 3:
+                faulties.append(pol)
+
+        if bnode.front is not None:
+            self._checkforfaulties(bnode.front, faulties)
+
+        if bnode.back is not None:
+            self._checkforfaulties(bnode.back, faulties)
+                
 class StlModeEnum(Enum):
     ASCII = 1
     BINARY = 2

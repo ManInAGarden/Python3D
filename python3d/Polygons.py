@@ -191,7 +191,7 @@ class Plane3(object):
         try:
             n = (b - a).cross(c - a).unit()
         except:
-            raise Exception("Not all points are different {} {} {}".format(str(a), str(b), str(c)))
+            raise Exception("Points do not span a valid plane {} {} {}".format(str(a), str(b), str(c)))
 
         return Plane3(n, n * a)
 
@@ -903,6 +903,6 @@ class BTNode(object):
             answ.extend(self.back.get_deep_polygons())
 
         return answ
-    
+
 
 

@@ -1,5 +1,5 @@
-from python3d.ElementClasses import CylinderElement
 import unittest
+from sys import setrecursionlimit
 import python3d as pd
 from TestBase import *
 from TestBaseMeshes import *
@@ -64,7 +64,7 @@ class TestBodies(TestBaseMeshes):
                 body.addelement(elli.translate(0.0, 0.0, zpos + elli._rz + dist), quality=20)
                 zpos += 2* elli._rz + dist
 
-        cyl = CylinderElement(rx=5, ry=5, l=20*len(ellis) + 20).translate(0,0, (10*len(ellis) + 20)/2)
+        cyl = pd.CylinderElement(rx=5, ry=5, l=20*len(ellis) + 20).translate(0,0, (10*len(ellis) + 20)/2)
         body.addelement(cyl, quality=30)
         body.rotate(pd.AxisEnum.YAXIS, 45)
 
@@ -73,8 +73,10 @@ class TestBodies(TestBaseMeshes):
         self.write_stl(m)
 
 
-        
+    
 
 
 if __name__ == "__main__":
+    setrecursionlimit(5000)
+
     unittest.main()

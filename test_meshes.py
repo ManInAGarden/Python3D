@@ -1,7 +1,4 @@
 from sys import setrecursionlimit
-from python3d.ElementClasses import AxisEnum, EllipsoidElement, RotateExtrudedElement
-from python3d.Polygons import Ellipse2, EllipticArc2, Line2, Polygon3, TangentPosEnum, Vector2
-from python3d.Bodies import BodyOperationEnum
 from TestBaseMeshes import TestBaseMeshes
 import numpy
 from numpy.core.arrayprint import _leading_trailing
@@ -135,7 +132,7 @@ class ElementTest(TestBaseMeshes):
         elli = pd.EllipsoidElement(rx=100, ry=70, rz=50)
         body = pd.Body().addelement(elli, quality=30)
         toolelli = pd.EllipsoidElement(rx=10, ry=10, rz=10).translate(100,0,0) #places centre on the outer tip of first ellipsoid
-        body.addelement(toolelli, BodyOperationEnum.DIFFERENCE, 30)
+        body.addelement(toolelli, pd.BodyOperationEnum.DIFFERENCE, 30)
         m = pd.Mesh(body)
         m.name = "test_stl_ellipsoid_pinched"
         self.write_stl(m)
@@ -245,11 +242,11 @@ class ElementTest(TestBaseMeshes):
         self.write_stl(m)
 
     def test_sketched_drop(self):
-        arc = pd.EllipticArc2(Vector2.Zero(), Vector2.newFromXY(10, 10), -(90 + 45), 90 + 45, 30)
-        ts = arc.get_tangent(TangentPosEnum.START)
-        te = arc.get_tangent(TangentPosEnum.END)
+        arc = pd.EllipticArc2(pd.Vector2.Zero(), pd.Vector2.newFromXY(10, 10), -(90 + 45), 90 + 45, 30)
+        ts = arc.get_tangent(pd.TangentPosEnum.START)
+        te = arc.get_tangent(pd.TangentPosEnum.END)
 
-        hole = pd.Ellipse2(arc.get_centre(), Vector2.newFromXY(3,3), 30)
+        hole = pd.Ellipse2(arc.get_centre(), pd.Vector2.newFromXY(3,3), 30)
 
         corne = te.get_projectedpt(-4) #projected outwards of the arc, negative t
         corns = ts.get_projectedpt(-4)
@@ -266,7 +263,7 @@ class ElementTest(TestBaseMeshes):
         self.write_stl(m)
 
     def test_zigzag(self):
-        lin = Line2(Vector2.Zero(), Vector2.newFromXY(0.0,10.0))
+        lin = pd.Line2(pd.Vector2.Zero(), pd.Vector2.newFromXY(0.0,10.0))
 
         for i in range(2,5):
             iseven = i % 2 == 0
@@ -283,11 +280,12 @@ class ElementTest(TestBaseMeshes):
                 lastpt = lin.add_point_byangle(280, 5)
             else:
                 lastpt = lin.add_point_byangle(260, 5)
-        lin.add_point(Vector2.newFromXY(-10.0,0.0))
+        lin.add_point(pd.Vector2.newFromXY(-10.0,0.0))
 
         lin.close_line()
 
-        bohrung = Ellipse2(Vector2.newFromXY(-5,10), Vector2.newFromXY(2,2), 20)
+        bohrung = pd.Ellipse2(pd.Vector2.newFromXY(-5,10), 
+            pd.Vector2.newFromXY(2,2), 20)
         skel = pd.LineExtrudedElement(extrup=10)
 
         skel.add_poly(pd.Polygon2.newFromSketch(lin))
@@ -307,8 +305,8 @@ class ElementTest(TestBaseMeshes):
         ctrlpts.reverse()
 
         bez = pd.Bezier2(ctrlpts, 30)
-        clin = Line2(pd.Vector2.Zero(), pd.Vector2.newFromXY(10.0, 0.0))
-        poly = Polygon2.newFromSketch(bez, clin)
+        clin = pd.Line2(pd.Vector2.Zero(), pd.Vector2.newFromXY(10.0, 0.0))
+        poly = pd.Polygon2.newFromSketch(bez, clin)
         skel = pd.LineExtrudedElement(extrup=20)
         skel.add_poly(poly)
         body = pd.Body().addelement(skel)
@@ -332,10 +330,10 @@ class ElementTest(TestBaseMeshes):
         rotex = pd.RotateExtrudedElement()
         rotex.add_poly(vp)
         rotexin = rotex.scale(0.9, 0.9, 0.9).translate(0.0, 2.5, 0.0)
-        cyl = pd.CylinderElement(rx=18, ry=18, l=5).rotate(AxisEnum.XAXIS, 90).translate(0,50,0)
+        cyl = pd.CylinderElement(rx=18, ry=18, l=5).rotate(pd.AxisEnum.XAXIS, 90).translate(0,50,0)
         body = pd.Body().addelement(rotex, quality=30)
-        body.addelement(rotexin, BodyOperationEnum.DIFFERENCE, quality=30)
-        body.addelement(cyl, BodyOperationEnum.DIFFERENCE, quality=30)
+        body.addelement(rotexin, pd.BodyOperationEnum.DIFFERENCE, quality=30)
+        body.addelement(cyl, pd.BodyOperationEnum.DIFFERENCE, quality=30)
         
         m = pd.Mesh(body)
         m.name = "test_rotate_extrude_vase"
@@ -371,7 +369,7 @@ class ElementTest(TestBaseMeshes):
         l41 = pd.Line2(corner4 + pd.Vector2.newFromXY(-arcr,0),
             corner1 + pd.Vector2.newFromXY(-arcr,0))
         skel = pd.LineExtrudedElement(extrup=10)
-        skel.add_poly(Polygon2.newFromSketch(arc1, l12, arc2, l23, arc3, l34, arc4, l41))
+        skel.add_poly(pd.Polygon2.newFromSketch(arc1, l12, arc2, l23, arc3, l34, arc4, l41))
         return skel
 
     def _addhole_sketch(self, sketch, cent, rad):
