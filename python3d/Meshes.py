@@ -9,6 +9,10 @@ import mapbox_earcut as mbe
 
 from enum import Enum
 
+class MeshFault(object):
+    def __init__(self, msg : str, val : object):
+        self.msg = msg
+        self.value = val
 
 class Mesh(object):
     """ class to hold Meshes consisting of Polygons stored in the nodes and leaves of a binary tree
@@ -514,21 +518,37 @@ class Mesh(object):
     def checkforconsistentrianglemesh(self):
         """check the mesh if it consists only of triangles
         """
-        faulties = []
-        self._checkforfaulties(self.btsource, faulties)
-        return faulties
+        faults = []
+        allpolys = self.get_all_polygons()
+        allvertices = []
+        allvertexcts = []
+        triangles = []
 
-    def _checkforfaulties(self, bnode : BTNode, faulties : list):
-        for pol in bnode.polygons:
-            if pol.vertices is None or len(pol.vertices) != 3:
-                faulties.append(pol)
-
-        if bnode.front is not None:
-            self._checkforfaulties(bnode.front, faulties)
-
-        if bnode.back is not None:
-            self._checkforfaulties(bnode.back, faulties)
+        for pol in allpolys:
+            tria = []
+            for vert in pol.vertices:
+                if not vert in allvertices:
+                    allvertices.append(vert)
+                    allvertexcts.append(1)
+                    idx = len(allvertices)
+                else:
+                    idx = allvertices.index(vert)
+                    allvertexcts[idx] += 1
                 
+                tria.append(idx)
+
+            if len(tria)>3:
+                faults.append(MeshFault("more than thre vertices in polygon detected", pol))
+
+            triangles.append(tria)
+
+        for i in range(len(allvertices)):
+            if allvertexcts[i] < 2:
+                faults.append(MeshFault("lonesome vertex (less then 2 triangles) detected", allvertices[i]))
+
+        return faults
+
+    
 class StlModeEnum(Enum):
     ASCII = 1
     BINARY = 2
